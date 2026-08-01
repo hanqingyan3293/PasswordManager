@@ -1,0 +1,6 @@
+﻿7-Zip Version: 26.02
+Release Date: 2026-06-25
+Architecture: Windows x64
+Source: https://www.7-zip.org/a/7z2602-x64.msi
+Source Page: https://www.7-zip.org/download.html
+Downloaded At: 2026-07-28T17:52:00.1564064+08:00
