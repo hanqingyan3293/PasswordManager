@@ -1,6 +1,7 @@
 #include "PasswordManager/ui/HistoryPage.h"
 
 #include "PasswordManager/app/AppPaths.h"
+#include "PasswordManager/app/AppLogger.h"
 #include "PasswordManager/app/ExtractService.h"
 #include "PasswordManager/data/ArchivePasswordRepository.h"
 #include "PasswordManager/data/ExtractLogRepository.h"
@@ -290,6 +291,14 @@ void HistoryPage::extractSelected()
 
     QString logError;
     m_extractLogRepository.add(record.archiveId, record.archivePath, outputDirectory, result.status, message, &logError);
+    AppLogger(m_paths.logsDir()).extract(QString("Extract completed from history: archive_id=%1 status=%2 output=%3 path=%4")
+            .arg(record.archiveId)
+            .arg(extractStatusText(result.status))
+            .arg(outputDirectory)
+            .arg(record.archivePath));
+    if (!logError.isEmpty()) {
+        AppLogger(m_paths.logsDir()).error("Extract log write failed: " + logError);
+    }
 
     if (result.status == ExtractStatus::Success) {
         QMessageBox::information(this, "PasswordManager", "解压完成。");

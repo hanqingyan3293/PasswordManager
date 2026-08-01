@@ -1,5 +1,6 @@
 #include "PasswordManager/app/ArchiveScanner.h"
 
+#include <QCryptographicHash>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
@@ -13,6 +14,7 @@ private slots:
     void supportsExpectedExtensions();
     void scansFilesAndSkipsUnsupported();
     void scansDirectoryRecursively();
+    void canSkipFullHashForFastScan();
 
 private:
     bool writeFile(const QString& path, const QByteArray& content);
@@ -51,6 +53,7 @@ void ArchiveScannerTests::scansFilesAndSkipsUnsupported()
     QCOMPARE(result.archives.first().fileName, QString("one.zip"));
     QCOMPARE(result.archives.first().extension, QString("zip"));
     QVERIFY(!result.archives.first().quickHash.isEmpty());
+    QCOMPARE(result.archives.first().fullHash, QString::fromLatin1(QCryptographicHash::hash("zip-content", QCryptographicHash::Sha256).toHex()));
 }
 
 void ArchiveScannerTests::scansDirectoryRecursively()
@@ -66,6 +69,22 @@ void ArchiveScannerTests::scansDirectoryRecursively()
     const auto result = ArchiveScanner().scanDirectory(dir.path());
     QCOMPARE(result.archives.size(), 2);
     QCOMPARE(result.skippedCount, 1);
+}
+
+void ArchiveScannerTests::canSkipFullHashForFastScan()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString zip = dir.filePath("fast.zip");
+    QVERIFY(writeFile(zip, "fast-content"));
+
+    const auto result = ArchiveScanner(false).scanFiles({zip});
+    QCOMPARE(result.archives.size(), 1);
+    QVERIFY(!result.archives.first().quickHash.isEmpty());
+    QVERIFY(result.archives.first().fullHash.isEmpty());
+    QVERIFY(!result.fullHashCalculated);
+    QVERIFY(result.elapsedMs >= 0);
 }
 
 QTEST_MAIN(ArchiveScannerTests)

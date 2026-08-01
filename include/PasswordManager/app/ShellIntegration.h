@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PasswordManager/app/AppConfig.h"
+
 #include <QList>
 #include <QString>
 #include <QStringList>
@@ -37,20 +39,21 @@ public:
         const QString& filePlaceholder = "%1");
 
     bool install(const QString& executablePath, QString* errorMessage = nullptr) const;
+    bool install(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage = nullptr) const;
     bool uninstall(QString* errorMessage = nullptr) const;
     bool isInstalled() const;
     bool isInstalledForExecutable(const QString& executablePath) const;
-    QList<ShellIntegrationExtensionStatus> status(const QString& executablePath = QString()) const;
+    QList<ShellIntegrationExtensionStatus> status(const QString& executablePath = QString(), const ShellMenuSettings& settings = ShellMenuSettings()) const;
 
 private:
     bool installForExtension(const QString& extension, const QString& executablePath, QString* errorMessage) const;
     bool installForFile(const QString& executablePath, QString* errorMessage) const;
     bool installForDirectory(const QString& executablePath, QString* errorMessage) const;
     bool installForDirectoryBackground(const QString& executablePath, QString* errorMessage) const;
-    bool installArchiveMenuClass(const QString& executablePath, QString* errorMessage) const;
-    bool installFileMenuClass(const QString& executablePath, QString* errorMessage) const;
-    bool installDirectoryMenuClass(const QString& executablePath, QString* errorMessage) const;
-    bool installDirectoryBackgroundMenuClass(const QString& executablePath, QString* errorMessage) const;
+    bool installArchiveMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const;
+    bool installFileMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const;
+    bool installDirectoryMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const;
+    bool installDirectoryBackgroundMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const;
     bool uninstallForExtension(const QString& extension, QString* errorMessage) const;
     bool uninstallForFile(QString* errorMessage) const;
     bool uninstallForDirectory(QString* errorMessage) const;

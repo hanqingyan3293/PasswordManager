@@ -13,6 +13,7 @@ public:
     explicit PasswordRepository(QString connectionName);
 
     QList<PasswordRecord> list(const QString& filter = QString()) const;
+    QList<PasswordRecord> listByCategory(const QString& category) const;
     PasswordRecord findByPassword(const QString& password) const;
     bool add(const PasswordRecord& record, QString* errorMessage = nullptr) const;
     bool update(const PasswordRecord& record, QString* errorMessage = nullptr) const;

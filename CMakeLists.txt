@@ -12,9 +12,11 @@ qt_standard_project_setup()
 
 qt_add_executable(PasswordManager
     src/main.cpp
+    src/app/AppConfig.cpp
     src/app/MainWindow.cpp
     src/app/AppPaths.cpp
     src/app/AppLogger.cpp
+    src/app/ArchiveFingerprintService.cpp
     src/app/ArchiveScanner.cpp
     src/app/DiagnosticService.cpp
     src/app/ExtractService.cpp
@@ -43,7 +45,9 @@ qt_add_executable(PasswordManager
     src/ui/SettingsPage.cpp
     src/ui/TaskQueuePage.cpp
     include/PasswordManager/app/MainWindow.h
+    include/PasswordManager/app/AppConfig.h
     include/PasswordManager/app/AppPaths.h
+    include/PasswordManager/app/ArchiveFingerprintService.h
     include/PasswordManager/app/AppLogger.h
     include/PasswordManager/app/DiagnosticService.h
     include/PasswordManager/app/PasswordMatcher.h
@@ -165,11 +169,13 @@ add_test(
 
 qt_add_executable(PasswordTestTaskManagerTests
     tests/PasswordTestTaskManagerTests.cpp
+    src/app/AppLogger.cpp
     src/app/AppPaths.cpp
     src/app/PasswordTestTaskManager.cpp
     src/app/SevenZipRunner.cpp
     src/data/DatabaseService.cpp
     src/data/PasswordTestTaskRepository.cpp
+    include/PasswordManager/app/AppLogger.h
     include/PasswordManager/app/AppPaths.h
     include/PasswordManager/app/PasswordTestTaskManager.h
     include/PasswordManager/app/SevenZipRunner.h
@@ -231,11 +237,13 @@ qt_add_executable(ExtractServiceTests
 
 qt_add_executable(PasswordTestTaskRepositoryTests
     tests/PasswordTestTaskRepositoryTests.cpp
+    src/app/AppLogger.cpp
     src/app/AppPaths.cpp
     src/app/PasswordTestTaskManager.cpp
     src/app/SevenZipRunner.cpp
     src/data/DatabaseService.cpp
     src/data/PasswordTestTaskRepository.cpp
+    include/PasswordManager/app/AppLogger.h
     include/PasswordManager/app/AppPaths.h
     include/PasswordManager/app/PasswordTestTaskManager.h
     include/PasswordManager/app/SevenZipRunner.h
@@ -291,6 +299,7 @@ qt_add_executable(DiagnosticServiceTests
 
 qt_add_executable(PerformanceBenchmarkServiceTests
     tests/PerformanceBenchmarkServiceTests.cpp
+    src/app/AppLogger.cpp
     src/app/AppPaths.cpp
     src/app/ArchiveScanner.cpp
     src/app/PasswordMatcher.cpp
@@ -305,6 +314,7 @@ qt_add_executable(PerformanceBenchmarkServiceTests
     src/domain/ArchivePasswordRecord.cpp
     src/domain/ArchiveRecord.cpp
     src/domain/PasswordRecord.cpp
+    include/PasswordManager/app/AppLogger.h
     include/PasswordManager/app/AppPaths.h
     include/PasswordManager/app/ArchiveScanner.h
     include/PasswordManager/app/PasswordMatcher.h
@@ -319,6 +329,20 @@ qt_add_executable(PerformanceBenchmarkServiceTests
     include/PasswordManager/domain/ArchivePasswordRecord.h
     include/PasswordManager/domain/ArchiveRecord.h
     include/PasswordManager/domain/PasswordRecord.h
+)
+
+qt_add_executable(ArchiveFingerprintServiceTests
+    tests/ArchiveFingerprintServiceTests.cpp
+    src/app/AppPaths.cpp
+    src/app/ArchiveFingerprintService.cpp
+    src/data/ArchiveRepository.cpp
+    src/data/DatabaseService.cpp
+    src/domain/ArchiveRecord.cpp
+    include/PasswordManager/app/AppPaths.h
+    include/PasswordManager/app/ArchiveFingerprintService.h
+    include/PasswordManager/data/ArchiveRepository.h
+    include/PasswordManager/data/DatabaseService.h
+    include/PasswordManager/domain/ArchiveRecord.h
 )
 
 target_include_directories(ExtractServiceTests
@@ -440,6 +464,26 @@ add_test(
         $<TARGET_FILE:PerformanceBenchmarkServiceTests>
 )
 
+target_include_directories(ArchiveFingerprintServiceTests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(ArchiveFingerprintServiceTests
+    PRIVATE
+        Qt6::Test
+        Qt6::Core
+        Qt6::Sql
+)
+
+add_test(
+    NAME ArchiveFingerprintServiceTests
+    COMMAND ${CMAKE_COMMAND} -E env
+        "PATH=$<TARGET_FILE_DIR:Qt6::Core>;$ENV{PATH}"
+        "QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Core>/../plugins"
+        $<TARGET_FILE:ArchiveFingerprintServiceTests>
+)
+
 qt_add_executable(ShellIntegrationTests
     tests/ShellIntegrationTests.cpp
     src/app/ShellIntegration.cpp
@@ -448,6 +492,8 @@ qt_add_executable(ShellIntegrationTests
 
 qt_add_executable(ShellActionServiceTests
     tests/ShellActionServiceTests.cpp
+    src/app/AppConfig.cpp
+    src/app/AppLogger.cpp
     src/app/AppPaths.cpp
     src/app/ArchiveScanner.cpp
     src/app/PasswordMatcher.cpp
@@ -463,6 +509,8 @@ qt_add_executable(ShellActionServiceTests
     src/domain/ArchiveRecord.cpp
     src/domain/PasswordRecord.cpp
     include/PasswordManager/app/AppPaths.h
+    include/PasswordManager/app/AppConfig.h
+    include/PasswordManager/app/AppLogger.h
     include/PasswordManager/app/ArchiveScanner.h
     include/PasswordManager/app/PasswordMatcher.h
     include/PasswordManager/app/PasswordTestTaskManager.h

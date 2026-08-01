@@ -140,6 +140,11 @@ void recordExtractLog(
     if (!extractLogRepository.add(archiveId, archivePath, outputDirectory, result.status, extractResultMessage(result), &error)) {
         logger.error("Extract log write failed: " + error);
     }
+    logger.extract(QString("Extract completed from shell: archive_id=%1 status=%2 output=%3 path=%4")
+            .arg(archiveId)
+            .arg(PasswordManager::extractStatusText(result.status))
+            .arg(outputDirectory)
+            .arg(archivePath));
 }
 
 int recordSuccessfulPassword(
@@ -212,12 +217,14 @@ QString askPassword(const QString& archivePath)
 int handleKnownPasswordPopup(
     const QString& action,
     const QString& archivePath,
+    const PasswordManager::AppPaths& paths,
     const PasswordManager::ArchiveRepository& archiveRepository,
     const PasswordManager::ArchivePasswordRepository& archivePasswordRepository,
     const PasswordManager::PasswordRepository& passwordRepository,
     PasswordManager::PasswordTestTaskManager& taskManager)
 {
     const auto result = PasswordManager::ShellActionService(
+        paths,
         archiveRepository,
         archivePasswordRepository,
         passwordRepository,
@@ -272,6 +279,7 @@ int handleExtractArchive(
     PasswordManager::PasswordTestTaskManager& taskManager)
 {
     const auto lookupResult = PasswordManager::ShellActionService(
+        paths,
         archiveRepository,
         archivePasswordRepository,
         passwordRepository,
@@ -414,9 +422,11 @@ int main(int argc, char* argv[])
 
         PasswordManager::DatabaseService database(paths);
         if (!database.open()) {
+            logger.database("Database open failed: " + database.lastError());
             logger.error("Smoke test failed: database open failed. " + database.lastError());
             return 1;
         }
+        logger.database("Database opened: " + database.databasePath());
 
         if (!QFileInfo::exists(paths.sevenZipExecutable())) {
             logger.error("Smoke test failed: bundled 7-Zip was not found.");
@@ -474,17 +484,19 @@ int main(int argc, char* argv[])
 
     PasswordManager::DatabaseService database(paths);
     if (!database.open()) {
+        logger.database("Database open failed: " + database.lastError());
         logger.error("Database open failed: " + database.lastError());
         showShellMessage(QMessageBox::Critical, "PasswordManager", "数据库打开失败：" + database.lastError());
         return 1;
     }
+    logger.database("Database opened: " + database.databasePath());
 
     PasswordManager::ArchiveRepository archiveRepository(database.connectionName());
     PasswordManager::ArchivePasswordRepository archivePasswordRepository(database.connectionName());
     PasswordManager::ExtractLogRepository extractLogRepository(database.connectionName());
     PasswordManager::PasswordRepository passwordRepository(database.connectionName());
     PasswordManager::PasswordTestTaskRepository passwordTestTaskRepository(database.connectionName());
-    PasswordManager::PasswordTestTaskManager taskManager(paths.sevenZipExecutable(), &passwordTestTaskRepository);
+    PasswordManager::PasswordTestTaskManager taskManager(paths.sevenZipExecutable(), &passwordTestTaskRepository, &logger);
     QObject::connect(&taskManager, &PasswordManager::PasswordTestTaskManager::taskFinished, &app, [&](const PasswordManager::PasswordTestTask& task) {
         int passwordId = task.passwordId;
 
@@ -540,6 +552,7 @@ int main(int argc, char* argv[])
             const int result = handleKnownPasswordPopup(
                 shellAction,
                 shellPath,
+                paths,
                 archiveRepository,
                 archivePasswordRepository,
                 passwordRepository,

@@ -109,6 +109,36 @@ QList<ArchivePasswordRecord> ArchivePasswordRepository::listForArchive(int archi
     return records;
 }
 
+QList<ArchivePasswordRecord> ArchivePasswordRepository::listForFullHash(const QString& fullHash, int excludeArchiveId) const
+{
+    QList<ArchivePasswordRecord> records;
+    if (fullHash.trimmed().isEmpty()) {
+        return records;
+    }
+
+    QSqlQuery query(QSqlDatabase::database(m_connectionName));
+    query.prepare(R"(
+        SELECT ap.id, ap.archive_id, COALESCE(ap.password_id, 0), a.file_name, a.path,
+               ap.password, ap.success_count, ap.last_success_at, ap.updated_at
+        FROM archive_passwords ap
+        JOIN archives a ON a.id = ap.archive_id
+        WHERE a.full_hash = :full_hash
+          AND (:exclude_archive_id <= 0 OR ap.archive_id != :exclude_archive_id)
+        ORDER BY ap.success_count DESC, ap.last_success_at DESC, ap.id DESC
+    )");
+    query.bindValue(":full_hash", fullHash.trimmed());
+    query.bindValue(":exclude_archive_id", excludeArchiveId);
+
+    if (!query.exec()) {
+        return records;
+    }
+
+    while (query.next()) {
+        records.append(readRecord(query));
+    }
+    return records;
+}
+
 bool ArchivePasswordRepository::remove(int id, QString* errorMessage) const
 {
     QSqlQuery query(QSqlDatabase::database(m_connectionName));

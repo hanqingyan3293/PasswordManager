@@ -6,6 +6,7 @@ namespace PasswordManager {
 
 class ArchiveRepository;
 class ArchivePasswordRepository;
+class AppPaths;
 class PasswordRepository;
 class PasswordTestTaskManager;
 
@@ -22,6 +23,7 @@ struct ShellActionResult {
 class ShellActionService {
 public:
     ShellActionService(
+        const AppPaths& paths,
         const ArchiveRepository& archiveRepository,
         const ArchivePasswordRepository& archivePasswordRepository,
         const PasswordRepository& passwordRepository,
@@ -34,6 +36,7 @@ public:
 private:
     ShellActionResult scanAndSaveArchive(const QString& archivePath) const;
 
+    const AppPaths& m_paths;
     const ArchiveRepository& m_archiveRepository;
     const ArchivePasswordRepository& m_archivePasswordRepository;
     const PasswordRepository& m_passwordRepository;

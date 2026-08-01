@@ -1,5 +1,8 @@
 #include "PasswordManager/ui/HomePage.h"
 
+#include "PasswordManager/app/AppConfig.h"
+#include "PasswordManager/app/AppLogger.h"
+#include "PasswordManager/app/AppPaths.h"
 #include "PasswordManager/app/ArchiveScanner.h"
 #include "PasswordManager/app/PasswordMatcher.h"
 #include "PasswordManager/app/PasswordTestTaskManager.h"
@@ -14,6 +17,7 @@
 #include <QHash>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -53,6 +57,14 @@ QTableWidgetItem* numericItem(int value)
     return new NumericTableWidgetItem(value);
 }
 
+QString formatElapsed(qint64 elapsedMs)
+{
+    if (elapsedMs < 1000) {
+        return QString("%1 ms").arg(elapsedMs);
+    }
+    return QString::number(elapsedMs / 1000.0, 'f', 2) + " s";
+}
+
 void fillPageSizeOptions(QComboBox* combo)
 {
     combo->addItem("10", 10);
@@ -83,12 +95,14 @@ QList<ArchivePasswordRecord> directoryHistoryForArchive(const QList<ArchivePassw
 }
 
 HomePage::HomePage(
+    const AppPaths& paths,
     const ArchiveRepository& archiveRepository,
     const ArchivePasswordRepository& archivePasswordRepository,
     const PasswordRepository& passwordRepository,
     PasswordTestTaskManager& taskManager,
     QWidget* parent)
     : QWidget(parent)
+    , m_paths(paths)
     , m_archiveRepository(archiveRepository)
     , m_archivePasswordRepository(archivePasswordRepository)
     , m_passwordRepository(passwordRepository)
@@ -116,11 +130,13 @@ void HomePage::buildUi()
 
     auto* scanFilesButton = new QPushButton("扫描文件", this);
     auto* scanDirectoryButton = new QPushButton("扫描文件夹", this);
+    auto* categoryButton = new QPushButton("设置分类", this);
     auto* refreshButton = new QPushButton("刷新", this);
 
     actions->addWidget(m_search, 1);
     actions->addWidget(scanFilesButton);
     actions->addWidget(scanDirectoryButton);
+    actions->addWidget(categoryButton);
     actions->addWidget(refreshButton);
 
     auto* testActions = new QHBoxLayout;
@@ -138,8 +154,8 @@ void HomePage::buildUi()
     m_emptyState->setStyleSheet("color: #667085; padding: 16px;");
 
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(7);
-    m_table->setHorizontalHeaderLabels({"ID", "文件名", "格式", "大小", "修改时间", "快速 Hash", "路径"});
+    m_table->setColumnCount(8);
+    m_table->setHorizontalHeaderLabels({"ID", "文件名", "格式", "分类", "大小", "修改时间", "文件指纹", "路径"});
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -147,8 +163,8 @@ void HomePage::buildUi()
     m_table->verticalHeader()->setVisible(false);
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(7, QHeaderView::Stretch);
 
     layout->addWidget(title);
     layout->addLayout(actions);
@@ -181,6 +197,7 @@ void HomePage::buildUi()
     });
     connect(scanFilesButton, &QPushButton::clicked, this, &HomePage::scanFiles);
     connect(scanDirectoryButton, &QPushButton::clicked, this, &HomePage::scanDirectory);
+    connect(categoryButton, &QPushButton::clicked, this, &HomePage::setSelectedArchiveCategory);
     connect(refreshButton, &QPushButton::clicked, this, &HomePage::reload);
     connect(testButton, &QPushButton::clicked, this, &HomePage::testSelectedArchivePassword);
     connect(matchButton, &QPushButton::clicked, this, &HomePage::matchSelectedArchivePasswords);
@@ -232,10 +249,11 @@ void HomePage::renderPage()
         m_table->setItem(row, 0, numericItem(record.id));
         m_table->setItem(row, 1, new QTableWidgetItem(record.fileName));
         m_table->setItem(row, 2, new QTableWidgetItem(record.extension.toUpper()));
-        m_table->setItem(row, 3, new QTableWidgetItem(formatSize(record.sizeBytes)));
-        m_table->setItem(row, 4, new QTableWidgetItem(record.modifiedAt.toString("yyyy-MM-dd HH:mm:ss")));
-        m_table->setItem(row, 5, new QTableWidgetItem(record.quickHash.left(16)));
-        m_table->setItem(row, 6, new QTableWidgetItem(record.path));
+        m_table->setItem(row, 3, new QTableWidgetItem(record.category));
+        m_table->setItem(row, 4, new QTableWidgetItem(formatSize(record.sizeBytes)));
+        m_table->setItem(row, 5, new QTableWidgetItem(record.modifiedAt.toString("yyyy-MM-dd HH:mm:ss")));
+        m_table->setItem(row, 6, new QTableWidgetItem(record.fullHash.left(16)));
+        m_table->setItem(row, 7, new QTableWidgetItem(record.path));
     }
     m_table->setSortingEnabled(true);
 
@@ -292,7 +310,11 @@ void HomePage::scanFiles()
         return;
     }
 
-    persistScanResult(ArchiveScanner().scanFiles(paths));
+    const SmartMatchSettings settings = AppConfig(m_paths).smartMatchSettings();
+    AppLogger(m_paths.logsDir()).archive(QString("Home scan files started: count=%1 mode=%2")
+            .arg(paths.size())
+            .arg(settings.calculateFullHashDuringScan ? "full_hash" : "quick_hash"));
+    persistScanResult(ArchiveScanner(settings.calculateFullHashDuringScan).scanFiles(paths));
 }
 
 void HomePage::scanDirectory()
@@ -302,7 +324,46 @@ void HomePage::scanDirectory()
         return;
     }
 
-    persistScanResult(ArchiveScanner().scanDirectory(path));
+    const SmartMatchSettings settings = AppConfig(m_paths).smartMatchSettings();
+    AppLogger(m_paths.logsDir()).archive(QString("Home scan directory started: path=%1 mode=%2")
+            .arg(path)
+            .arg(settings.calculateFullHashDuringScan ? "full_hash" : "quick_hash"));
+    persistScanResult(ArchiveScanner(settings.calculateFullHashDuringScan).scanDirectory(path));
+}
+
+void HomePage::setSelectedArchiveCategory()
+{
+    const QList<ArchiveRecord> archives = selectedRecords();
+    if (archives.isEmpty()) {
+        QMessageBox::information(this, "PasswordManager", "请先选择一个或多个压缩包。");
+        return;
+    }
+
+    bool accepted = false;
+    const QString initialCategory = archives.size() == 1 ? archives.first().category : QString();
+    const QString category = QInputDialog::getText(
+        this,
+        "PasswordManager",
+        QString("设置 %1 个压缩包的分类：").arg(archives.size()),
+        QLineEdit::Normal,
+        initialCategory,
+        &accepted).trimmed();
+    if (!accepted) {
+        return;
+    }
+
+    QString error;
+    int updated = 0;
+    for (const ArchiveRecord& archive : archives) {
+        if (!m_archiveRepository.updateCategory(archive.id, category, &error)) {
+            QMessageBox::warning(this, "PasswordManager", "保存压缩包分类失败：" + error);
+            return;
+        }
+        ++updated;
+    }
+
+    reload();
+    QMessageBox::information(this, "PasswordManager", QString("已更新 %1 个压缩包分类。").arg(updated));
 }
 
 void HomePage::testSelectedArchivePassword()
@@ -333,6 +394,7 @@ void HomePage::matchSelectedArchivePasswords()
 
     const QList<PasswordRecord> passwordRecords = m_passwordRepository.list();
     const QList<ArchivePasswordRecord> allHistory = m_archivePasswordRepository.list();
+    const SmartMatchSettings settings = AppConfig(m_paths).smartMatchSettings();
     PasswordMatcher matcher;
     QHash<QString, int> passwordIdsByText;
     for (const PasswordRecord& passwordRecord : passwordRecords) {
@@ -353,13 +415,17 @@ void HomePage::matchSelectedArchivePasswords()
         }
 
         ++archivesNeedingPassword;
-        const QStringList descriptionPasswords = matcher.extractLocalDescriptionPasswords(archive.path, 20);
+        const QStringList descriptionPasswords = settings.enableDescriptionFiles
+            ? matcher.extractLocalDescriptionPasswords(archive.path, settings.maxDescriptionCandidates, settings.maxDescriptionFileBytes)
+            : QStringList();
         const QStringList candidates = matcher.buildLayeredCandidates(
-            m_archivePasswordRepository.listForArchive(archive.id),
-            directoryHistoryForArchive(allHistory, archive),
-            passwordRecords,
+            settings.enableExactHistory ? m_archivePasswordRepository.listForArchive(archive.id) : QList<ArchivePasswordRecord>(),
+            settings.enableExactHistory ? m_archivePasswordRepository.listForFullHash(archive.fullHash, archive.id) : QList<ArchivePasswordRecord>(),
+            settings.enableDirectoryHistory ? directoryHistoryForArchive(allHistory, archive) : QList<ArchivePasswordRecord>(),
+            settings.enableCategoryCandidates ? m_passwordRepository.listByCategory(archive.category) : QList<PasswordRecord>(),
+            settings.enablePasswordLibrary ? passwordRecords : QList<PasswordRecord>(),
             descriptionPasswords,
-            100);
+            settings.maxCandidates);
         if (!candidates.isEmpty()) {
             candidatesByArchiveId.insert(archive.id, candidates);
             totalCandidates += candidates.size();
@@ -378,7 +444,7 @@ void HomePage::matchSelectedArchivePasswords()
     if (QMessageBox::question(
             this,
             "PasswordManager",
-            QString("将对 %1 个需要密码的压缩包加入 %2 个候选密码测试任务。\n\n候选来源：密码库 + 压缩包同目录说明文件。\n已跳过 %3 个无需密码的压缩包，不会把密码库密码记为正确。\n\n确认开始批量智能匹配测试吗？")
+            QString("将对 %1 个需要密码的压缩包加入 %2 个候选密码测试任务。\n\n候选来源按设置页开关控制。\n已跳过 %3 个无需密码的压缩包，不会把密码库密码记为正确。\n\n确认开始批量智能匹配测试吗？")
                 .arg(archivesNeedingPassword)
                 .arg(totalCandidates)
                 .arg(noPasswordArchives))
@@ -407,15 +473,25 @@ void HomePage::persistScanResult(const ScanResult& result)
     QString error;
     const int saved = m_archiveRepository.upsertMany(result.archives, &error);
     if (!error.isEmpty()) {
+        AppLogger(m_paths.logsDir()).error("Archive scan save failed: " + error);
         QMessageBox::critical(this, "PasswordManager", "保存扫描结果失败：" + error);
         return;
     }
 
+    AppLogger(m_paths.logsDir()).archive(QString("Home scan completed: saved=%1 skipped=%2 elapsed_ms=%3 mode=%4")
+            .arg(saved)
+            .arg(result.skippedCount)
+            .arg(result.elapsedMs)
+            .arg(result.fullHashCalculated ? "full_hash" : "quick_hash"));
     reload();
     QMessageBox::information(
         this,
         "PasswordManager",
-        QString("扫描完成。保存 %1 个压缩包，跳过 %2 个文件。").arg(saved).arg(result.skippedCount));
+        QString("扫描完成。保存 %1 个压缩包，跳过 %2 个文件。\n耗时：%3\n模式：%4")
+            .arg(saved)
+            .arg(result.skippedCount)
+            .arg(formatElapsed(result.elapsedMs))
+            .arg(result.fullHashCalculated ? "精确模式，扫描时计算完整文件指纹" : "快速模式，只计算快速 Hash"));
 }
 
 ArchiveRecord HomePage::selectedRecord() const

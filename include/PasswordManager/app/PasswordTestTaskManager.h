@@ -9,6 +9,7 @@
 
 namespace PasswordManager {
 
+class AppLogger;
 class PasswordTestTaskRepository;
 
 enum class PasswordTestTaskStatus {
@@ -38,6 +39,7 @@ class PasswordTestTaskManager final : public QObject {
 public:
     explicit PasswordTestTaskManager(QString sevenZipExecutable, QObject* parent = nullptr);
     PasswordTestTaskManager(QString sevenZipExecutable, const PasswordTestTaskRepository* repository, QObject* parent = nullptr);
+    PasswordTestTaskManager(QString sevenZipExecutable, const PasswordTestTaskRepository* repository, const AppLogger* logger, QObject* parent = nullptr);
 
     int enqueuePasswordTest(const QString& archivePath, const QString& password, int timeoutMs = 10000);
     int enqueuePasswordTest(int archiveId, int passwordId, const QString& archivePath, const QString& password, int timeoutMs = 10000);
@@ -66,6 +68,7 @@ private:
     QProcess* m_process = nullptr;
     QTimer* m_timeout = nullptr;
     const PasswordTestTaskRepository* m_repository = nullptr;
+    const AppLogger* m_logger = nullptr;
     int m_nextId = 1;
 };
 

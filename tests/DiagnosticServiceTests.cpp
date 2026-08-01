@@ -32,7 +32,12 @@ void DiagnosticServiceTests::exportsDiagnosticDirectory()
     AppPaths paths(dir.path());
     QVERIFY(paths.ensureRuntimeDirectories());
 
-    AppLogger(paths.logsDir()).info("diagnostic test log");
+    const AppLogger logger(paths.logsDir());
+    logger.info("diagnostic test log");
+    logger.error("diagnostic error log");
+    logger.archive("diagnostic archive log");
+    logger.extract("diagnostic extract log");
+    logger.database("diagnostic database log");
 
     DatabaseService database(paths);
     QVERIFY2(database.open(), qPrintable(database.lastError()));
@@ -48,6 +53,10 @@ void DiagnosticServiceTests::exportsDiagnosticDirectory()
     QVERIFY(QDir(outputDirectory).exists());
     QVERIFY(QFile::exists(QDir(outputDirectory).filePath("diagnostic.txt")));
     QVERIFY(QFile::exists(QDir(outputDirectory).filePath("app.log")));
+    QVERIFY(QFile::exists(QDir(outputDirectory).filePath("error.log")));
+    QVERIFY(QFile::exists(QDir(outputDirectory).filePath("archive.log")));
+    QVERIFY(QFile::exists(QDir(outputDirectory).filePath("extract.log")));
+    QVERIFY(QFile::exists(QDir(outputDirectory).filePath("database.log")));
 }
 
 QTEST_MAIN(DiagnosticServiceTests)

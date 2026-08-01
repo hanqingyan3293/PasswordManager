@@ -1,6 +1,8 @@
 #include "PasswordManager/ui/SettingsPage.h"
 
+#include "PasswordManager/app/AppConfig.h"
 #include "PasswordManager/app/AppPaths.h"
+#include "PasswordManager/app/ArchiveFingerprintService.h"
 #include "PasswordManager/app/DiagnosticService.h"
 #include "PasswordManager/app/PerformanceBenchmarkService.h"
 #include "PasswordManager/app/SevenZipProbe.h"
@@ -8,6 +10,7 @@
 #include "PasswordManager/data/DatabaseBackupService.h"
 
 #include <QCoreApplication>
+#include <QCheckBox>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
@@ -19,20 +22,24 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSizePolicy>
+#include <QSpinBox>
 #include <QStringList>
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <utility>
 
 namespace PasswordManager {
 
-SettingsPage::SettingsPage(const AppPaths& paths, QString databaseConnectionName, QWidget* parent)
+SettingsPage::SettingsPage(const AppPaths& paths, const ArchiveRepository& archiveRepository, QString databaseConnectionName, QWidget* parent)
     : QWidget(parent)
     , m_paths(paths)
+    , m_archiveRepository(archiveRepository)
     , m_databaseConnectionName(std::move(databaseConnectionName))
 {
     buildUi();
+    loadFeatureSettings();
     refreshSevenZipStatus();
     refreshShellIntegrationStatus();
 }
@@ -200,6 +207,81 @@ void SettingsPage::buildUi()
     shellLayout->setColumnStretch(1, 1);
     layout->addWidget(shellFrame);
 
+    addSectionTitle(layout, "智能匹配");
+    auto* smartFrame = new QFrame(this);
+    smartFrame->setObjectName("card");
+    auto* smartLayout = new QGridLayout(smartFrame);
+    smartLayout->setContentsMargins(14, 12, 14, 12);
+    smartLayout->setHorizontalSpacing(16);
+    smartLayout->setVerticalSpacing(8);
+
+    m_enableExactHistory = new QCheckBox("当前压缩包历史优先", smartFrame);
+    m_enableDirectoryHistory = new QCheckBox("同目录历史候选", smartFrame);
+    m_enableCategoryCandidates = new QCheckBox("同分类密码候选", smartFrame);
+    m_enablePasswordLibrary = new QCheckBox("密码库候选", smartFrame);
+    m_enableDescriptionFiles = new QCheckBox("同目录说明文件候选", smartFrame);
+    m_calculateFullHashDuringScan = new QCheckBox("扫描时计算完整文件指纹", smartFrame);
+    m_maxCandidates = new QSpinBox(smartFrame);
+    m_maxCandidates->setRange(1, 500);
+    m_maxDescriptionCandidates = new QSpinBox(smartFrame);
+    m_maxDescriptionCandidates->setRange(0, 100);
+    m_maxDescriptionFileKb = new QSpinBox(smartFrame);
+    m_maxDescriptionFileKb->setRange(1, 1024);
+    m_maxDescriptionFileKb->setSuffix(" KB");
+
+    smartLayout->addWidget(m_enableExactHistory, 0, 0);
+    smartLayout->addWidget(m_enableDirectoryHistory, 0, 1);
+    smartLayout->addWidget(m_enableCategoryCandidates, 1, 0);
+    smartLayout->addWidget(m_enablePasswordLibrary, 1, 1);
+    smartLayout->addWidget(m_enableDescriptionFiles, 2, 0);
+    smartLayout->addWidget(m_calculateFullHashDuringScan, 2, 1);
+    smartLayout->addWidget(new QLabel("最大候选数", smartFrame), 3, 0);
+    smartLayout->addWidget(m_maxCandidates, 3, 1);
+    smartLayout->addWidget(new QLabel("说明文件候选数", smartFrame), 4, 0);
+    smartLayout->addWidget(m_maxDescriptionCandidates, 4, 1);
+    smartLayout->addWidget(new QLabel("单个说明文件读取上限", smartFrame), 5, 0);
+    smartLayout->addWidget(m_maxDescriptionFileKb, 5, 1);
+    smartLayout->setColumnStretch(1, 1);
+    layout->addWidget(smartFrame);
+
+    addSectionTitle(layout, "右键菜单功能项");
+    auto* shellOptionsFrame = new QFrame(this);
+    shellOptionsFrame->setObjectName("card");
+    auto* shellOptionsLayout = new QGridLayout(shellOptionsFrame);
+    shellOptionsLayout->setContentsMargins(14, 12, 14, 12);
+    shellOptionsLayout->setHorizontalSpacing(16);
+    shellOptionsLayout->setVerticalSpacing(8);
+
+    m_shellArchiveLookup = new QCheckBox("压缩包：自动查找密码", shellOptionsFrame);
+    m_shellArchiveTest = new QCheckBox("压缩包：使用密码库测试", shellOptionsFrame);
+    m_shellArchiveViewResults = new QCheckBox("压缩包：查看结果", shellOptionsFrame);
+    m_shellArchiveExtract = new QCheckBox("压缩包：解压", shellOptionsFrame);
+    m_shellArchiveCompress = new QCheckBox("压缩包：打包压缩包", shellOptionsFrame);
+    m_shellArchiveOpenMain = new QCheckBox("压缩包：打开主程序", shellOptionsFrame);
+    m_shellFolderScan = new QCheckBox("文件夹：扫描文件夹", shellOptionsFrame);
+    m_shellFolderCompress = new QCheckBox("文件夹：打包压缩包", shellOptionsFrame);
+    m_shellFolderOpenMain = new QCheckBox("文件夹：打开主程序", shellOptionsFrame);
+    m_shellFileCompress = new QCheckBox("普通文件：打包压缩包", shellOptionsFrame);
+
+    shellOptionsLayout->addWidget(m_shellArchiveLookup, 0, 0);
+    shellOptionsLayout->addWidget(m_shellArchiveTest, 0, 1);
+    shellOptionsLayout->addWidget(m_shellArchiveViewResults, 1, 0);
+    shellOptionsLayout->addWidget(m_shellArchiveExtract, 1, 1);
+    shellOptionsLayout->addWidget(m_shellArchiveCompress, 2, 0);
+    shellOptionsLayout->addWidget(m_shellArchiveOpenMain, 2, 1);
+    shellOptionsLayout->addWidget(m_shellFolderScan, 3, 0);
+    shellOptionsLayout->addWidget(m_shellFolderCompress, 3, 1);
+    shellOptionsLayout->addWidget(m_shellFolderOpenMain, 4, 0);
+    shellOptionsLayout->addWidget(m_shellFileCompress, 4, 1);
+    auto* shellOptionsHint = new QLabel("右键菜单功能项设置会保存到本地配置；重新安装/修复右键菜单后生效。", shellOptionsFrame);
+    shellOptionsHint->setWordWrap(true);
+    shellOptionsLayout->addWidget(shellOptionsHint, 5, 0, 1, 2);
+    layout->addWidget(shellOptionsFrame);
+
+    auto* saveFeatureButton = new QPushButton("保存功能设置", this);
+    connect(saveFeatureButton, &QPushButton::clicked, this, &SettingsPage::saveFeatureSettings);
+    layout->addWidget(saveFeatureButton);
+
     addSectionTitle(layout, "数据备份与恢复");
     auto* backupFrame = new QFrame(this);
     backupFrame->setObjectName("card");
@@ -216,10 +298,13 @@ void SettingsPage::buildUi()
 
     auto* backupButton = new QPushButton("立即备份", backupFrame);
     auto* restoreButton = new QPushButton("从备份恢复", backupFrame);
+    auto* fingerprintButton = new QPushButton("补全文件指纹", backupFrame);
     connect(backupButton, &QPushButton::clicked, this, &SettingsPage::createDatabaseBackup);
     connect(restoreButton, &QPushButton::clicked, this, &SettingsPage::restoreDatabaseBackup);
+    connect(fingerprintButton, &QPushButton::clicked, this, &SettingsPage::backfillArchiveFingerprints);
     backupLayout->addWidget(backupButton, 1, 0);
     backupLayout->addWidget(restoreButton, 1, 1);
+    backupLayout->addWidget(fingerprintButton, 2, 0, 1, 2);
     backupLayout->setColumnStretch(1, 1);
     layout->addWidget(backupFrame);
 
@@ -281,7 +366,7 @@ void SettingsPage::refreshSevenZipStatus()
 void SettingsPage::refreshShellIntegrationStatus()
 {
     const ShellIntegration integration;
-    const QList<ShellIntegrationExtensionStatus> entries = integration.status(QCoreApplication::applicationFilePath());
+    const QList<ShellIntegrationExtensionStatus> entries = integration.status(QCoreApplication::applicationFilePath(), AppConfig(m_paths).shellMenuSettings());
     int completeCount = 0;
     QStringList details;
     for (const ShellIntegrationExtensionStatus& entry : entries) {
@@ -306,6 +391,64 @@ void SettingsPage::refreshShellIntegrationStatus()
         ? "已安装，命令指向当前程序"
         : (completeCount == 0 ? "未完整安装" : "部分安装");
     m_shellStatus->setText(summary + "\n" + details.join("\n"));
+}
+
+void SettingsPage::loadFeatureSettings()
+{
+    const AppConfig config(m_paths);
+    const SmartMatchSettings smart = config.smartMatchSettings();
+    m_enableExactHistory->setChecked(smart.enableExactHistory);
+    m_enableDirectoryHistory->setChecked(smart.enableDirectoryHistory);
+    m_enableCategoryCandidates->setChecked(smart.enableCategoryCandidates);
+    m_enablePasswordLibrary->setChecked(smart.enablePasswordLibrary);
+    m_enableDescriptionFiles->setChecked(smart.enableDescriptionFiles);
+    m_calculateFullHashDuringScan->setChecked(smart.calculateFullHashDuringScan);
+    m_maxCandidates->setValue(smart.maxCandidates);
+    m_maxDescriptionCandidates->setValue(smart.maxDescriptionCandidates);
+    m_maxDescriptionFileKb->setValue(std::max(1, smart.maxDescriptionFileBytes / 1024));
+
+    const ShellMenuSettings shell = config.shellMenuSettings();
+    m_shellArchiveLookup->setChecked(shell.enableArchiveLookup);
+    m_shellArchiveTest->setChecked(shell.enableArchiveTest);
+    m_shellArchiveViewResults->setChecked(shell.enableArchiveViewResults);
+    m_shellArchiveExtract->setChecked(shell.enableArchiveExtract);
+    m_shellArchiveCompress->setChecked(shell.enableArchiveCompress);
+    m_shellArchiveOpenMain->setChecked(shell.enableArchiveOpenMain);
+    m_shellFolderScan->setChecked(shell.enableFolderScan);
+    m_shellFolderCompress->setChecked(shell.enableFolderCompress);
+    m_shellFolderOpenMain->setChecked(shell.enableFolderOpenMain);
+    m_shellFileCompress->setChecked(shell.enableFileCompress);
+}
+
+void SettingsPage::saveFeatureSettings()
+{
+    SmartMatchSettings smart;
+    smart.enableExactHistory = m_enableExactHistory->isChecked();
+    smart.enableDirectoryHistory = m_enableDirectoryHistory->isChecked();
+    smart.enableCategoryCandidates = m_enableCategoryCandidates->isChecked();
+    smart.enablePasswordLibrary = m_enablePasswordLibrary->isChecked();
+    smart.enableDescriptionFiles = m_enableDescriptionFiles->isChecked();
+    smart.calculateFullHashDuringScan = m_calculateFullHashDuringScan->isChecked();
+    smart.maxCandidates = m_maxCandidates->value();
+    smart.maxDescriptionCandidates = m_maxDescriptionCandidates->value();
+    smart.maxDescriptionFileBytes = m_maxDescriptionFileKb->value() * 1024;
+
+    ShellMenuSettings shell;
+    shell.enableArchiveLookup = m_shellArchiveLookup->isChecked();
+    shell.enableArchiveTest = m_shellArchiveTest->isChecked();
+    shell.enableArchiveViewResults = m_shellArchiveViewResults->isChecked();
+    shell.enableArchiveExtract = m_shellArchiveExtract->isChecked();
+    shell.enableArchiveCompress = m_shellArchiveCompress->isChecked();
+    shell.enableArchiveOpenMain = m_shellArchiveOpenMain->isChecked();
+    shell.enableFolderScan = m_shellFolderScan->isChecked();
+    shell.enableFolderCompress = m_shellFolderCompress->isChecked();
+    shell.enableFolderOpenMain = m_shellFolderOpenMain->isChecked();
+    shell.enableFileCompress = m_shellFileCompress->isChecked();
+
+    AppConfig config(m_paths);
+    config.saveSmartMatchSettings(smart);
+    config.saveShellMenuSettings(shell);
+    QMessageBox::information(this, "PasswordManager", "功能设置已保存。智能匹配立即生效；右键菜单功能项请执行重新安装/修复后生效。");
 }
 
 void SettingsPage::openDirectory(const QString& path)
@@ -390,6 +533,28 @@ void SettingsPage::restoreDatabaseBackup()
     QCoreApplication::quit();
 }
 
+void SettingsPage::backfillArchiveFingerprints()
+{
+    if (QMessageBox::question(
+            this,
+            "PasswordManager",
+            "将为数据库中缺少完整文件指纹的压缩包记录计算 SHA256。\n\n不会删除记录，不会修改密码库和历史记录。大文件可能耗时较长。确认开始吗？")
+        != QMessageBox::Yes) {
+        return;
+    }
+
+    const FingerprintBackfillResult result = ArchiveFingerprintService(m_archiveRepository).backfillMissingFullHashes();
+    QString message = QString("文件指纹补全完成。\n\n待补全记录：%1\n已补全：%2\n文件不存在：%3\n失败：%4")
+                          .arg(result.totalMissing)
+                          .arg(result.updated)
+                          .arg(result.missingFiles)
+                          .arg(result.failed);
+    if (!result.lastError.isEmpty()) {
+        message += "\n\n最后错误：\n" + result.lastError;
+    }
+    QMessageBox::information(this, "PasswordManager", message);
+}
+
 void SettingsPage::installShellIntegration()
 {
     if (QMessageBox::question(this, "PasswordManager", "确认安装 Windows 资源管理器右键菜单吗？") != QMessageBox::Yes) {
@@ -397,7 +562,10 @@ void SettingsPage::installShellIntegration()
     }
 
     QString error;
-    if (!ShellIntegration().install(QCoreApplication::applicationFilePath(), &error)) {
+    const ShellIntegration integration;
+    integration.uninstall(&error);
+    error.clear();
+    if (!integration.install(QCoreApplication::applicationFilePath(), AppConfig(m_paths).shellMenuSettings(), &error)) {
         QMessageBox::critical(this, "PasswordManager", error.isEmpty() ? "右键菜单安装失败。" : error);
         return;
     }
@@ -418,7 +586,7 @@ void SettingsPage::repairShellIntegration()
         QMessageBox::critical(this, "PasswordManager", error.isEmpty() ? "右键菜单清理失败。" : error);
         return;
     }
-    if (!integration.install(QCoreApplication::applicationFilePath(), &error)) {
+    if (!integration.install(QCoreApplication::applicationFilePath(), AppConfig(m_paths).shellMenuSettings(), &error)) {
         QMessageBox::critical(this, "PasswordManager", error.isEmpty() ? "右键菜单修复失败。" : error);
         return;
     }

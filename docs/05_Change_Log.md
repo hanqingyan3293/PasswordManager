@@ -1,5 +1,111 @@
 # Change Log
 
+## 2026-08-02 Phase 51
+
+### 已完成
+
+- `AppLogger` 新增 `archive.log`、`extract.log`、`database.log` 分层日志。
+- 程序启动、退出、数据库打开、右键动作、扫描、任务状态和解压结果增加日志。
+- 日志不记录明文密码。
+- `archives` 表新增 `category` 字段，schema_version 升级到 7。
+- 首页表格新增压缩包分类列，并支持对选中压缩包设置分类。
+- 智能匹配新增同分类密码候选层。
+- 设置页新增 `同分类密码候选` 开关。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：14/14 通过。
+- Release 打包：通过。
+- Release CTest：14/14 通过。
+- smoke-test：退出码 0。
+- benchmark：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过。
+
+## 2026-08-02 Phase 50
+
+### 已完成
+
+- 设置页新增 `扫描时计算完整文件指纹`。
+- 默认保持精确扫描；关闭后使用快速扫描，只计算 quickHash。
+- 首页扫描和右键扫描反馈新增耗时与模式说明。
+- 快速重复扫描已有记录时保留原 fullHash，避免被空值覆盖。
+- 新增快速扫描和 fullHash 保留测试。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：14/14 通过。
+- Release 打包：通过。
+- Release CTest：14/14 通过。
+- smoke-test：退出码 0。
+- benchmark：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过。
+
+## 2026-08-02 Phase 49
+
+### 已完成
+
+- 设置页新增 `补全文件指纹`。
+- 新增旧记录 fullHash 补全服务。
+- 只更新 `archives.full_hash` 和 `scanned_at`，不改密码库、不改历史记录、不删除记录。
+- 文件不存在、计算失败、写库失败会分别计数。
+- 新增 `ArchiveFingerprintServiceTests`。
+- 修复空 fullHash 写库可能触发 SQLite NOT NULL 约束的问题。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：14/14 通过。
+- Release 打包：通过。
+- Release CTest：14/14 通过。
+- smoke-test：退出码 0。
+- benchmark：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过。
+
+## 2026-08-02 Phase 48
+
+### 已完成
+
+- 压缩包记录新增完整 SHA256 文件指纹 `full_hash`。
+- 扫描压缩包时计算并保存 fullHash。
+- 旧数据库启动时自动迁移新增 `archives.full_hash` 字段。
+- 同路径文件变化判断优先使用 fullHash，旧记录缺失时回退 quickHash。
+- 智能匹配新增同 fullHash 历史候选层，用于不同路径同一压缩包复用成功密码。
+- 首页表格显示 `文件指纹`。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：13/13 通过。
+- Release 打包：通过。
+- Release CTest：13/13 通过。
+- smoke-test：退出码 0。
+- benchmark：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过。
+
+## 2026-08-02 Phase 47
+
+### 已完成
+
+- 新增本地配置 `config/settings.ini`。
+- 设置页新增智能匹配功能级开关和候选数量限制。
+- 设置页新增右键菜单功能项开关。
+- 首页和右键 `使用密码库测试` 按设置启用候选来源。
+- 右键菜单安装/修复按设置写入菜单项。
+- 右键菜单状态检测按当前设置判断，避免禁用项误报不完整。
+- 发布包内新增 `LICENSE`。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：13/13 通过。
+- Release 打包：通过。
+- Release CTest：13/13 通过。
+- smoke-test：退出码 0。
+- benchmark：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过。
+
 ## 2026-08-02 Phase 46
 
 ### 已完成

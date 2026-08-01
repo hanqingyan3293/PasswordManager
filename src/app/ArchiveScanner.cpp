@@ -4,8 +4,14 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QElapsedTimer>
 
 namespace PasswordManager {
+
+ArchiveScanner::ArchiveScanner(bool calculateFullHash)
+    : m_calculateFullHash(calculateFullHash)
+{
+}
 
 bool ArchiveScanner::isSupportedArchive(const QString& filePath)
 {
@@ -15,7 +21,10 @@ bool ArchiveScanner::isSupportedArchive(const QString& filePath)
 
 ScanResult ArchiveScanner::scanFiles(const QStringList& filePaths) const
 {
+    QElapsedTimer timer;
+    timer.start();
     ScanResult result;
+    result.fullHashCalculated = m_calculateFullHash;
     for (const QString& filePath : filePaths) {
         ArchiveRecord record;
         if (scanOneFile(filePath, &record)) {
@@ -24,12 +33,16 @@ ScanResult ArchiveScanner::scanFiles(const QStringList& filePaths) const
             ++result.skippedCount;
         }
     }
+    result.elapsedMs = timer.elapsed();
     return result;
 }
 
 ScanResult ArchiveScanner::scanDirectory(const QString& directoryPath) const
 {
+    QElapsedTimer timer;
+    timer.start();
     ScanResult result;
+    result.fullHashCalculated = m_calculateFullHash;
     QDirIterator iterator(directoryPath, QDir::Files, QDirIterator::Subdirectories);
     while (iterator.hasNext()) {
         ArchiveRecord record;
@@ -39,6 +52,7 @@ ScanResult ArchiveScanner::scanDirectory(const QString& directoryPath) const
             ++result.skippedCount;
         }
     }
+    result.elapsedMs = timer.elapsed();
     return result;
 }
 
@@ -55,8 +69,9 @@ bool ArchiveScanner::scanOneFile(const QString& filePath, ArchiveRecord* record)
     record->sizeBytes = info.size();
     record->modifiedAt = info.lastModified();
     record->quickHash = quickHash(info.absoluteFilePath(), info.size());
+    record->fullHash = m_calculateFullHash ? fullHash(info.absoluteFilePath()) : QString();
     record->scannedAt = QDateTime::currentDateTime();
-    return !record->quickHash.isEmpty();
+    return !record->quickHash.isEmpty() && (!m_calculateFullHash || !record->fullHash.isEmpty());
 }
 
 QString ArchiveScanner::quickHash(const QString& filePath, qint64 fileSize) const
@@ -82,5 +97,23 @@ QString ArchiveScanner::quickHash(const QString& filePath, qint64 fileSize) cons
     return QString::fromLatin1(hash.result().toHex());
 }
 
-} // namespace PasswordManager
+QString ArchiveScanner::fullHash(const QString& filePath) const
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
 
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    constexpr qint64 chunkSize = 1024 * 1024;
+    while (!file.atEnd()) {
+        const QByteArray chunk = file.read(chunkSize);
+        if (chunk.isEmpty() && file.error() != QFile::NoError) {
+            return QString();
+        }
+        hash.addData(chunk);
+    }
+    return QString::fromLatin1(hash.result().toHex());
+}
+
+} // namespace PasswordManager

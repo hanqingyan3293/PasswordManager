@@ -19,6 +19,7 @@ public:
 private:
     bool migrate();
     bool execute(const QString& sql);
+    bool executeOptionalAlter(const QString& sql);
 
     const AppPaths& m_paths;
     QString m_connectionName;
@@ -26,4 +27,3 @@ private:
 };
 
 } // namespace PasswordManager
-

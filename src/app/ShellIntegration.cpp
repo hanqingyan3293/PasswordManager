@@ -1,5 +1,7 @@
 #include "PasswordManager/app/ShellIntegration.h"
 
+#include "PasswordManager/app/AppConfig.h"
+
 #include <QDir>
 #include <QFileInfo>
 #include <QPair>
@@ -281,30 +283,46 @@ bool ShellIntegration::commandMatches(
 
 bool ShellIntegration::install(const QString& executablePath, QString* errorMessage) const
 {
-    if (!installArchiveMenuClass(executablePath, errorMessage)) {
-        return false;
+    return install(executablePath, ShellMenuSettings(), errorMessage);
+}
+
+bool ShellIntegration::install(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const
+{
+    const bool archiveEnabled = settings.enableArchiveLookup
+        || settings.enableArchiveTest
+        || settings.enableArchiveViewResults
+        || settings.enableArchiveExtract
+        || settings.enableArchiveCompress
+        || settings.enableArchiveOpenMain;
+    const bool directoryEnabled = settings.enableFolderScan || settings.enableFolderCompress || settings.enableFolderOpenMain;
+    const bool directoryBackgroundEnabled = settings.enableFolderCompress || settings.enableFolderOpenMain;
+
+    if (archiveEnabled) {
+        if (!installArchiveMenuClass(executablePath, settings, errorMessage)) {
+            return false;
+        }
+        for (const QString& extension : supportedExtensions()) {
+            if (!installForExtension(extension, executablePath, errorMessage)) {
+                return false;
+            }
+        }
     }
-    if (!installFileMenuClass(executablePath, errorMessage)) {
-        return false;
-    }
-    if (!installDirectoryMenuClass(executablePath, errorMessage)) {
-        return false;
-    }
-    if (!installDirectoryBackgroundMenuClass(executablePath, errorMessage)) {
-        return false;
-    }
-    for (const QString& extension : supportedExtensions()) {
-        if (!installForExtension(extension, executablePath, errorMessage)) {
+    if (settings.enableFileCompress) {
+        if (!installFileMenuClass(executablePath, settings, errorMessage) || !installForFile(executablePath, errorMessage)) {
             return false;
         }
     }
-    if (!installForFile(executablePath, errorMessage)) {
-        return false;
+    if (directoryEnabled) {
+        if (!installDirectoryMenuClass(executablePath, settings, errorMessage) || !installForDirectory(executablePath, errorMessage)) {
+            return false;
+        }
     }
-    if (!installForDirectory(executablePath, errorMessage)) {
-        return false;
+    if (directoryBackgroundEnabled) {
+        if (!installDirectoryBackgroundMenuClass(executablePath, settings, errorMessage) || !installForDirectoryBackground(executablePath, errorMessage)) {
+            return false;
+        }
     }
-    return installForDirectoryBackground(executablePath, errorMessage);
+    return true;
 }
 
 bool ShellIntegration::uninstall(QString* errorMessage) const
@@ -390,77 +408,116 @@ bool ShellIntegration::isInstalledForExecutable(const QString& executablePath) c
     return !entries.isEmpty();
 }
 
-QList<ShellIntegrationExtensionStatus> ShellIntegration::status(const QString& executablePath) const
+QList<ShellIntegrationExtensionStatus> ShellIntegration::status(const QString& executablePath, const ShellMenuSettings& settings) const
 {
     QList<ShellIntegrationExtensionStatus> entries;
+    const auto commandOk = [&executablePath](const QString& classKey, const QString& itemKey, const QString& text, const QString& action, const QString& placeholder = "%1") {
+        const QString itemPath = classKey + "\\Shell\\" + itemKey;
+        const QString command = registryStringValue(itemPath + "\\command", ".");
+        if (!registryValueEquals(itemPath, "MUIVerb", text)) {
+            return false;
+        }
+        return executablePath.isEmpty() ? !command.isEmpty() : commandMatches(command, executablePath, action, placeholder);
+    };
+    const auto directCommandOk = [](const QString& classKey, const QString& itemKey, const QString& text, const QString& expectedCommand) {
+        const QString itemPath = classKey + "\\Shell\\" + itemKey;
+        return registryValueEquals(itemPath, "MUIVerb", text)
+            && registryStringValue(itemPath + "\\command", ".") == expectedCommand;
+    };
+    const bool archiveEnabled = settings.enableArchiveLookup
+        || settings.enableArchiveTest
+        || settings.enableArchiveViewResults
+        || settings.enableArchiveExtract
+        || settings.enableArchiveCompress
+        || settings.enableArchiveOpenMain;
+    const bool directoryEnabled = settings.enableFolderScan || settings.enableFolderCompress || settings.enableFolderOpenMain;
+    const bool directoryBackgroundEnabled = settings.enableFolderCompress || settings.enableFolderOpenMain;
+
     for (const QString& extension : supportedExtensions()) {
         ShellIntegrationExtensionStatus entry;
         entry.extension = extension;
 
-        entry.rootInstalled = registryValueEquals(menuRootKey(extension), "MUIVerb", kMenuText)
-            && registryValueEquals(menuRootKey(extension), "ExtendedSubCommandsKey", kArchiveMenuClass);
-
-        entry.addQueueInstalled = registryValueEquals(archiveMenuClassKey() + "\\Shell\\library_test", "MUIVerb", "使用密码库测试");
+        entry.rootInstalled = !archiveEnabled
+            || (registryValueEquals(menuRootKey(extension), "MUIVerb", kMenuText)
+                && registryValueEquals(menuRootKey(extension), "ExtendedSubCommandsKey", kArchiveMenuClass));
 
         entry.addQueueCommand = registryStringValue(archiveMenuClassKey() + "\\Shell\\library_test\\command", ".");
-
-        entry.viewResultsInstalled = registryValueEquals(archiveMenuClassKey() + "\\Shell\\view_results", "MUIVerb", "查看结果");
-
         entry.viewResultsCommand = registryStringValue(archiveMenuClassKey() + "\\Shell\\view_results\\command", ".");
-
-        entry.commandsPointToExecutable = executablePath.isEmpty()
-            ? (!entry.addQueueCommand.isEmpty() && !entry.viewResultsCommand.isEmpty())
-            : (commandMatches(entry.addQueueCommand, executablePath, "use-password-library-test")
-                && commandMatches(entry.viewResultsCommand, executablePath, "view-results"));
+        bool archiveCommandsOk = true;
+        if (settings.enableArchiveLookup) {
+            archiveCommandsOk = archiveCommandsOk && commandOk(archiveMenuClassKey(), "lookup_password", "自动查找密码", "lookup-password");
+        }
+        if (settings.enableArchiveTest) {
+            archiveCommandsOk = archiveCommandsOk && commandOk(archiveMenuClassKey(), "library_test", "使用密码库测试", "use-password-library-test");
+        }
+        if (settings.enableArchiveViewResults) {
+            archiveCommandsOk = archiveCommandsOk && commandOk(archiveMenuClassKey(), "view_results", "查看结果", "view-results");
+        }
+        if (settings.enableArchiveExtract) {
+            archiveCommandsOk = archiveCommandsOk && commandOk(archiveMenuClassKey(), "extract_archive", "解压", "extract-archive");
+        }
+        if (settings.enableArchiveCompress) {
+            archiveCommandsOk = archiveCommandsOk && directCommandOk(archiveMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath));
+        }
+        if (settings.enableArchiveOpenMain) {
+            archiveCommandsOk = archiveCommandsOk && commandOk(archiveMenuClassKey(), "open_main", "打开主程序", "open-main");
+        }
+        entry.addQueueInstalled = archiveCommandsOk;
+        entry.viewResultsInstalled = archiveCommandsOk;
+        entry.commandsPointToExecutable = archiveCommandsOk;
 
         entries.append(entry);
     }
 
     ShellIntegrationExtensionStatus fileEntry;
     fileEntry.extension = "普通文件";
-    fileEntry.rootInstalled = registryValueEquals(fileMenuRootKey(), "MUIVerb", kMenuText)
-        && registryValueEquals(fileMenuRootKey(), "ExtendedSubCommandsKey", kFileMenuClass);
-    fileEntry.addQueueInstalled = registryValueEquals(fileMenuClassKey() + "\\Shell\\compress_archive", "MUIVerb", "打包压缩包");
+    fileEntry.rootInstalled = !settings.enableFileCompress
+        || (registryValueEquals(fileMenuRootKey(), "MUIVerb", kMenuText)
+            && registryValueEquals(fileMenuRootKey(), "ExtendedSubCommandsKey", kFileMenuClass));
+    fileEntry.addQueueInstalled = !settings.enableFileCompress
+        || commandOk(fileMenuClassKey(), "compress_archive", "打包压缩包", "compress-archive");
     fileEntry.addQueueCommand = registryStringValue(fileMenuClassKey() + "\\Shell\\compress_archive\\command", ".");
     fileEntry.viewResultsInstalled = fileEntry.addQueueInstalled;
     fileEntry.viewResultsCommand = fileEntry.addQueueCommand;
-    fileEntry.commandsPointToExecutable = executablePath.isEmpty()
-        ? !fileEntry.addQueueCommand.isEmpty()
-        : commandMatches(fileEntry.addQueueCommand, executablePath, "compress-archive");
+    fileEntry.commandsPointToExecutable = fileEntry.addQueueInstalled;
     entries.append(fileEntry);
 
     ShellIntegrationExtensionStatus directoryEntry;
     directoryEntry.extension = "文件夹";
-    directoryEntry.rootInstalled = registryValueEquals(directoryMenuRootKey(), "MUIVerb", kMenuText)
-        && registryValueEquals(directoryMenuRootKey(), "ExtendedSubCommandsKey", kDirectoryMenuClass);
-
-    directoryEntry.addQueueInstalled = registryValueEquals(directoryMenuClassKey() + "\\Shell\\scan_folder", "MUIVerb", "扫描文件夹");
+    directoryEntry.rootInstalled = !directoryEnabled
+        || (registryValueEquals(directoryMenuRootKey(), "MUIVerb", kMenuText)
+            && registryValueEquals(directoryMenuRootKey(), "ExtendedSubCommandsKey", kDirectoryMenuClass));
 
     directoryEntry.addQueueCommand = registryStringValue(directoryMenuClassKey() + "\\Shell\\scan_folder\\command", ".");
-
-    directoryEntry.viewResultsInstalled = registryValueEquals(directoryMenuClassKey() + "\\Shell\\open_main", "MUIVerb", "打开主程序");
-
     directoryEntry.viewResultsCommand = registryStringValue(directoryMenuClassKey() + "\\Shell\\open_main\\command", ".");
-
-    directoryEntry.commandsPointToExecutable = executablePath.isEmpty()
-        ? (!directoryEntry.addQueueCommand.isEmpty() && !directoryEntry.viewResultsCommand.isEmpty())
-        : (commandMatches(directoryEntry.addQueueCommand, executablePath, "scan-folder")
-            && commandMatches(directoryEntry.viewResultsCommand, executablePath, "open-main"));
+    bool directoryCommandsOk = true;
+    if (settings.enableFolderScan) {
+        directoryCommandsOk = directoryCommandsOk && commandOk(directoryMenuClassKey(), "scan_folder", "扫描文件夹", "scan-folder");
+    }
+    if (settings.enableFolderCompress) {
+        directoryCommandsOk = directoryCommandsOk && directCommandOk(directoryMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath));
+    }
+    if (settings.enableFolderOpenMain) {
+        directoryCommandsOk = directoryCommandsOk && commandOk(directoryMenuClassKey(), "open_main", "打开主程序", "open-main");
+    }
+    directoryEntry.addQueueInstalled = directoryCommandsOk;
+    directoryEntry.viewResultsInstalled = directoryCommandsOk;
+    directoryEntry.commandsPointToExecutable = directoryCommandsOk;
 
     entries.append(directoryEntry);
 
     ShellIntegrationExtensionStatus directoryBackgroundEntry;
     directoryBackgroundEntry.extension = "文件夹空白处";
-    directoryBackgroundEntry.rootInstalled = registryValueEquals(directoryBackgroundMenuRootKey(), "MUIVerb", kMenuText)
-        && registryValueEquals(directoryBackgroundMenuRootKey(), "ExtendedSubCommandsKey", kDirectoryBackgroundMenuClass);
-    directoryBackgroundEntry.addQueueInstalled = registryValueEquals(directoryBackgroundMenuClassKey() + "\\Shell\\compress_archive", "MUIVerb", "打包压缩包");
+    directoryBackgroundEntry.rootInstalled = !directoryBackgroundEnabled
+        || (registryValueEquals(directoryBackgroundMenuRootKey(), "MUIVerb", kMenuText)
+            && registryValueEquals(directoryBackgroundMenuRootKey(), "ExtendedSubCommandsKey", kDirectoryBackgroundMenuClass));
+    directoryBackgroundEntry.addQueueInstalled = !settings.enableFolderCompress
+        || directCommandOk(directoryBackgroundMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath, "%V"));
     directoryBackgroundEntry.addQueueCommand = registryStringValue(directoryBackgroundMenuClassKey() + "\\Shell\\compress_archive\\command", ".");
-    directoryBackgroundEntry.viewResultsInstalled = registryValueEquals(directoryBackgroundMenuClassKey() + "\\Shell\\open_main", "MUIVerb", "打开主程序");
+    directoryBackgroundEntry.viewResultsInstalled = !settings.enableFolderOpenMain
+        || commandOk(directoryBackgroundMenuClassKey(), "open_main", "打开主程序", "open-main", "%V");
     directoryBackgroundEntry.viewResultsCommand = registryStringValue(directoryBackgroundMenuClassKey() + "\\Shell\\open_main\\command", ".");
-    directoryBackgroundEntry.commandsPointToExecutable = executablePath.isEmpty()
-        ? (!directoryBackgroundEntry.addQueueCommand.isEmpty() && !directoryBackgroundEntry.viewResultsCommand.isEmpty())
-        : (directoryBackgroundEntry.addQueueCommand == compressCommandFor(executablePath, "%V")
-            && commandMatches(directoryBackgroundEntry.viewResultsCommand, executablePath, "open-main", "%V"));
+    directoryBackgroundEntry.commandsPointToExecutable = directoryBackgroundEntry.addQueueInstalled && directoryBackgroundEntry.viewResultsInstalled;
     entries.append(directoryBackgroundEntry);
     return entries;
 }
@@ -569,7 +626,7 @@ bool ShellIntegration::installForDirectoryBackground(const QString& executablePa
     return true;
 }
 
-bool ShellIntegration::installArchiveMenuClass(const QString& executablePath, QString* errorMessage) const
+bool ShellIntegration::installArchiveMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const
 {
     if (!removeRegistrySubtree(
             "HKEY_CURRENT_USER\\Software\\Classes",
@@ -579,12 +636,25 @@ bool ShellIntegration::installArchiveMenuClass(const QString& executablePath, QS
         return false;
     }
 
-    const bool ok = writeMenuCommand(archiveMenuClassKey(), "lookup_password", "自动查找密码", commandFor(executablePath, "lookup-password"))
-        && writeMenuCommand(archiveMenuClassKey(), "library_test", "使用密码库测试", commandFor(executablePath, "use-password-library-test"))
-        && writeMenuCommand(archiveMenuClassKey(), "view_results", "查看结果", commandFor(executablePath, "view-results"))
-        && writeMenuCommand(archiveMenuClassKey(), "extract_archive", "解压", commandFor(executablePath, "extract-archive"))
-        && writeMenuCommand(archiveMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath))
-        && writeMenuCommand(archiveMenuClassKey(), "open_main", "打开主程序", commandFor(executablePath, "open-main"));
+    bool ok = true;
+    if (settings.enableArchiveLookup) {
+        ok = ok && writeMenuCommand(archiveMenuClassKey(), "lookup_password", "自动查找密码", commandFor(executablePath, "lookup-password"));
+    }
+    if (settings.enableArchiveTest) {
+        ok = ok && writeMenuCommand(archiveMenuClassKey(), "library_test", "使用密码库测试", commandFor(executablePath, "use-password-library-test"));
+    }
+    if (settings.enableArchiveViewResults) {
+        ok = ok && writeMenuCommand(archiveMenuClassKey(), "view_results", "查看结果", commandFor(executablePath, "view-results"));
+    }
+    if (settings.enableArchiveExtract) {
+        ok = ok && writeMenuCommand(archiveMenuClassKey(), "extract_archive", "解压", commandFor(executablePath, "extract-archive"));
+    }
+    if (settings.enableArchiveCompress) {
+        ok = ok && writeMenuCommand(archiveMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath));
+    }
+    if (settings.enableArchiveOpenMain) {
+        ok = ok && writeMenuCommand(archiveMenuClassKey(), "open_main", "打开主程序", commandFor(executablePath, "open-main"));
+    }
 
     if (!ok && errorMessage) {
         *errorMessage = "写入压缩包右键菜单定义失败。";
@@ -592,7 +662,7 @@ bool ShellIntegration::installArchiveMenuClass(const QString& executablePath, QS
     return ok;
 }
 
-bool ShellIntegration::installFileMenuClass(const QString& executablePath, QString* errorMessage) const
+bool ShellIntegration::installFileMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const
 {
     if (!removeRegistrySubtree(
             "HKEY_CURRENT_USER\\Software\\Classes",
@@ -602,14 +672,17 @@ bool ShellIntegration::installFileMenuClass(const QString& executablePath, QStri
         return false;
     }
 
-    const bool ok = writeMenuCommand(fileMenuClassKey(), "compress_archive", "打包压缩包", commandFor(executablePath, "compress-archive"));
+    bool ok = true;
+    if (settings.enableFileCompress) {
+        ok = ok && writeMenuCommand(fileMenuClassKey(), "compress_archive", "打包压缩包", commandFor(executablePath, "compress-archive"));
+    }
     if (!ok && errorMessage) {
         *errorMessage = "写入普通文件右键菜单定义失败。";
     }
     return ok;
 }
 
-bool ShellIntegration::installDirectoryMenuClass(const QString& executablePath, QString* errorMessage) const
+bool ShellIntegration::installDirectoryMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const
 {
     if (!removeRegistrySubtree(
             "HKEY_CURRENT_USER\\Software\\Classes",
@@ -619,9 +692,16 @@ bool ShellIntegration::installDirectoryMenuClass(const QString& executablePath, 
         return false;
     }
 
-    const bool ok = writeMenuCommand(directoryMenuClassKey(), "scan_folder", "扫描文件夹", commandFor(executablePath, "scan-folder"))
-        && writeMenuCommand(directoryMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath))
-        && writeMenuCommand(directoryMenuClassKey(), "open_main", "打开主程序", commandFor(executablePath, "open-main"));
+    bool ok = true;
+    if (settings.enableFolderScan) {
+        ok = ok && writeMenuCommand(directoryMenuClassKey(), "scan_folder", "扫描文件夹", commandFor(executablePath, "scan-folder"));
+    }
+    if (settings.enableFolderCompress) {
+        ok = ok && writeMenuCommand(directoryMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath));
+    }
+    if (settings.enableFolderOpenMain) {
+        ok = ok && writeMenuCommand(directoryMenuClassKey(), "open_main", "打开主程序", commandFor(executablePath, "open-main"));
+    }
 
     if (!ok && errorMessage) {
         *errorMessage = "写入文件夹右键菜单定义失败。";
@@ -629,7 +709,7 @@ bool ShellIntegration::installDirectoryMenuClass(const QString& executablePath, 
     return ok;
 }
 
-bool ShellIntegration::installDirectoryBackgroundMenuClass(const QString& executablePath, QString* errorMessage) const
+bool ShellIntegration::installDirectoryBackgroundMenuClass(const QString& executablePath, const ShellMenuSettings& settings, QString* errorMessage) const
 {
     if (!removeRegistrySubtree(
             "HKEY_CURRENT_USER\\Software\\Classes",
@@ -639,8 +719,13 @@ bool ShellIntegration::installDirectoryBackgroundMenuClass(const QString& execut
         return false;
     }
 
-    const bool ok = writeMenuCommand(directoryBackgroundMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath, "%V"))
-        && writeMenuCommand(directoryBackgroundMenuClassKey(), "open_main", "打开主程序", commandFor(executablePath, "open-main", "%V"));
+    bool ok = true;
+    if (settings.enableFolderCompress) {
+        ok = ok && writeMenuCommand(directoryBackgroundMenuClassKey(), "compress_archive", "打包压缩包", compressCommandFor(executablePath, "%V"));
+    }
+    if (settings.enableFolderOpenMain) {
+        ok = ok && writeMenuCommand(directoryBackgroundMenuClassKey(), "open_main", "打开主程序", commandFor(executablePath, "open-main", "%V"));
+    }
 
     if (!ok && errorMessage) {
         *errorMessage = "写入文件夹空白处右键菜单定义失败。";

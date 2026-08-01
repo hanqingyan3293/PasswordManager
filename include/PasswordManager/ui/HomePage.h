@@ -15,6 +15,7 @@ namespace PasswordManager {
 
 class ArchiveRepository;
 class ArchivePasswordRepository;
+class AppPaths;
 class PasswordRepository;
 class PasswordTestTaskManager;
 
@@ -23,6 +24,7 @@ class HomePage final : public QWidget {
 
 public:
     explicit HomePage(
+        const AppPaths& paths,
         const ArchiveRepository& archiveRepository,
         const ArchivePasswordRepository& archivePasswordRepository,
         const PasswordRepository& passwordRepository,
@@ -38,6 +40,7 @@ private:
     int totalPages() const;
     void scanFiles();
     void scanDirectory();
+    void setSelectedArchiveCategory();
     void testSelectedArchivePassword();
     void matchSelectedArchivePasswords();
     void persistScanResult(const struct ScanResult& result);
@@ -45,6 +48,7 @@ private:
     QList<ArchiveRecord> selectedRecords() const;
     QString formatSize(qint64 bytes) const;
 
+    const AppPaths& m_paths;
     const ArchiveRepository& m_archiveRepository;
     const ArchivePasswordRepository& m_archivePasswordRepository;
     const PasswordRepository& m_passwordRepository;

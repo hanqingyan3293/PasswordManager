@@ -105,10 +105,9 @@ bool isUsefulDescriptionFileName(const QFileInfo& fileInfo, const QString& archi
     return false;
 }
 
-QString readSmallTextFile(const QFileInfo& fileInfo)
+QString readSmallTextFile(const QFileInfo& fileInfo, qint64 maxFileBytes)
 {
-    constexpr qint64 maxDescriptionBytes = 256 * 1024;
-    if (!fileInfo.exists() || !fileInfo.isFile() || fileInfo.size() > maxDescriptionBytes) {
+    if (!fileInfo.exists() || !fileInfo.isFile() || fileInfo.size() > maxFileBytes) {
         return {};
     }
 
@@ -134,12 +133,14 @@ QStringList PasswordMatcher::buildCandidates(const QList<PasswordRecord>& passwo
 
 QStringList PasswordMatcher::buildCandidates(const QList<PasswordRecord>& passwords, const QStringList& extraPasswords, int limit) const
 {
-    return buildLayeredCandidates({}, {}, passwords, extraPasswords, limit);
+    return buildLayeredCandidates({}, {}, {}, {}, passwords, extraPasswords, limit);
 }
 
 QStringList PasswordMatcher::buildLayeredCandidates(
     const QList<ArchivePasswordRecord>& exactHistory,
+    const QList<ArchivePasswordRecord>& fullHashHistory,
     const QList<ArchivePasswordRecord>& directoryHistory,
+    const QList<PasswordRecord>& categoryPasswords,
     const QList<PasswordRecord>& passwords,
     const QStringList& extraPasswords,
     int limit) const
@@ -154,8 +155,28 @@ QStringList PasswordMatcher::buildLayeredCandidates(
         }
     }
 
+    for (const ArchivePasswordRecord& record : sortedHistoryRecords(fullHashHistory)) {
+        appendCandidate(candidates, seen, record.password, limit);
+        if (limit > 0 && candidates.size() >= limit) {
+            return candidates;
+        }
+    }
+
     for (const ArchivePasswordRecord& record : sortedHistoryRecords(directoryHistory)) {
         appendCandidate(candidates, seen, record.password, limit);
+        if (limit > 0 && candidates.size() >= limit) {
+            return candidates;
+        }
+    }
+
+    for (const PasswordRecord& record : sortedPasswordRecords(categoryPasswords)) {
+        const QString password = record.password.trimmed();
+        if (password.isEmpty() || seen.contains(password)) {
+            continue;
+        }
+
+        seen.insert(password);
+        candidates.append(password);
         if (limit > 0 && candidates.size() >= limit) {
             return candidates;
         }
@@ -209,7 +230,7 @@ QStringList PasswordMatcher::extractDescriptionPasswordsFromText(const QString& 
     return candidates;
 }
 
-QStringList PasswordMatcher::extractLocalDescriptionPasswords(const QString& archivePath, int limit) const
+QStringList PasswordMatcher::extractLocalDescriptionPasswords(const QString& archivePath, int limit, qint64 maxFileBytes) const
 {
     const QFileInfo archiveInfo(archivePath);
     const QDir directory(archiveInfo.absolutePath());
@@ -253,7 +274,7 @@ QStringList PasswordMatcher::extractLocalDescriptionPasswords(const QString& arc
     QStringList candidates;
     QSet<QString> seen;
     for (const QFileInfo& fileInfo : descriptionFiles) {
-        const QStringList extracted = extractDescriptionPasswordsFromText(readSmallTextFile(fileInfo), limit);
+        const QStringList extracted = extractDescriptionPasswordsFromText(readSmallTextFile(fileInfo, maxFileBytes), limit);
         for (const QString& password : extracted) {
             appendCandidate(candidates, seen, password, limit);
             if (limit > 0 && candidates.size() >= limit) {

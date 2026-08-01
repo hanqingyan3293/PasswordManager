@@ -1,5 +1,6 @@
 #include "PasswordManager/app/PasswordTestTaskManager.h"
 
+#include "PasswordManager/app/AppLogger.h"
 #include "PasswordManager/app/SevenZipRunner.h"
 #include "PasswordManager/data/PasswordTestTaskRepository.h"
 
@@ -27,11 +28,17 @@ PasswordTestTaskManager::PasswordTestTaskManager(QString sevenZipExecutable, QOb
 }
 
 PasswordTestTaskManager::PasswordTestTaskManager(QString sevenZipExecutable, const PasswordTestTaskRepository* repository, QObject* parent)
+    : PasswordTestTaskManager(std::move(sevenZipExecutable), repository, nullptr, parent)
+{
+}
+
+PasswordTestTaskManager::PasswordTestTaskManager(QString sevenZipExecutable, const PasswordTestTaskRepository* repository, const AppLogger* logger, QObject* parent)
     : QObject(parent)
     , m_sevenZipExecutable(std::move(sevenZipExecutable))
     , m_process(new QProcess(this))
     , m_timeout(new QTimer(this))
     , m_repository(repository)
+    , m_logger(logger)
 {
     m_timeout->setSingleShot(true);
 
@@ -96,6 +103,9 @@ int PasswordTestTaskManager::enqueuePasswordTest(int archiveId, int passwordId, 
         task.testStatus = SevenZipTestStatus::MissingSevenZip;
         task.message = "Bundled 7-Zip does not exist.";
         persistNewTask(&task);
+        if (m_logger) {
+            m_logger->archive(QString("Password test enqueue failed: missing 7-Zip archive_id=%1 path=%2").arg(task.archiveId).arg(task.archivePath));
+        }
         m_tasks.append(task);
         emit tasksChanged();
         return task.id;
@@ -108,6 +118,9 @@ int PasswordTestTaskManager::enqueuePasswordTest(int archiveId, int passwordId, 
         task.testStatus = SevenZipTestStatus::NoPasswordRequired;
         task.message = "Archive does not require a password.";
         persistNewTask(&task);
+        if (m_logger) {
+            m_logger->archive(QString("Password test skipped: archive has no password archive_id=%1 path=%2").arg(task.archiveId).arg(task.archivePath));
+        }
         m_tasks.append(task);
         emit tasksChanged();
         emit taskFinished(task);
@@ -115,6 +128,13 @@ int PasswordTestTaskManager::enqueuePasswordTest(int archiveId, int passwordId, 
     }
 
     persistNewTask(&task);
+    if (m_logger) {
+        m_logger->archive(QString("Password test enqueued: task_id=%1 archive_id=%2 password_id=%3 path=%4")
+                .arg(task.id)
+                .arg(task.archiveId)
+                .arg(task.passwordId)
+                .arg(task.archivePath));
+    }
     m_tasks.append(task);
     emit tasksChanged();
     startNext();
@@ -147,6 +167,12 @@ void PasswordTestTaskManager::cancelTask(int id)
             m_tasks[i].status = PasswordTestTaskStatus::Cancelled;
             m_tasks[i].message = "Task cancelled.";
             persistTaskUpdate(m_tasks[i]);
+            if (m_logger) {
+                m_logger->archive(QString("Password test cancelled: task_id=%1 archive_id=%2 path=%3")
+                        .arg(m_tasks[i].id)
+                        .arg(m_tasks[i].archiveId)
+                        .arg(m_tasks[i].archivePath));
+            }
             emit tasksChanged();
             return;
         }
@@ -295,6 +321,13 @@ void PasswordTestTaskManager::startNext()
         task.status = PasswordTestTaskStatus::Running;
         task.message = "Running.";
         persistTaskUpdate(task);
+        if (m_logger) {
+            m_logger->archive(QString("Password test started: task_id=%1 archive_id=%2 password_id=%3 path=%4")
+                    .arg(task.id)
+                    .arg(task.archiveId)
+                    .arg(task.passwordId)
+                    .arg(task.archivePath));
+        }
         m_process->setProgram(m_sevenZipExecutable);
         const QStringList arguments = {"t", "-y", "-p" + task.password, task.archivePath};
         m_process->setArguments(arguments);
@@ -318,6 +351,15 @@ void PasswordTestTaskManager::finishRunningTask(PasswordTestTaskStatus status, S
     m_tasks[index].message = message;
     persistTaskUpdate(m_tasks[index]);
     const PasswordTestTask finishedTask = m_tasks[index];
+    if (m_logger) {
+        m_logger->archive(QString("Password test finished: task_id=%1 archive_id=%2 password_id=%3 status=%4 test_status=%5 path=%6")
+                .arg(finishedTask.id)
+                .arg(finishedTask.archiveId)
+                .arg(finishedTask.passwordId)
+                .arg(passwordTestTaskStatusText(finishedTask.status))
+                .arg(sevenZipTestStatusText(finishedTask.testStatus))
+                .arg(finishedTask.archivePath));
+    }
     emit tasksChanged();
     emit taskFinished(finishedTask);
     startNext();

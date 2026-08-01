@@ -27,8 +27,11 @@ private slots:
     void recordsSuccessAndUpdatesPasswordStats();
     void filtersByArchivePath();
     void listsByArchiveId();
+    void listsByFullHashAcrossPaths();
     void removesHistoryRecordOnly();
     void clearsHistoryWhenArchiveHashChangesForSamePath();
+    void keepsExistingFullHashDuringFastRescan();
+    void updatesAndKeepsArchiveCategory();
 };
 
 void ArchivePasswordRepositoryTests::recordsSuccessAndUpdatesPasswordStats()
@@ -139,6 +142,40 @@ void ArchivePasswordRepositoryTests::listsByArchiveId()
     QCOMPARE(firstHistory.first().password, QString("one-secret"));
 }
 
+void ArchivePasswordRepositoryTests::listsByFullHashAcrossPaths()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AppPaths paths(dir.path());
+    QVERIFY(paths.ensureRuntimeDirectories());
+
+    DatabaseService database(paths);
+    QVERIFY2(database.open(), qPrintable(database.lastError()));
+
+    QSqlDatabase db = QSqlDatabase::database(database.connectionName());
+    QSqlQuery archive(db);
+    QVERIFY(archive.exec(R"(
+        INSERT INTO archives(path, file_name, extension, size_bytes, modified_at, quick_hash, full_hash, scanned_at)
+        VALUES('C:/tmp/a/one.zip', 'one.zip', 'zip', 10, '2026-01-01T00:00:00', 'quick1', 'full-shared', '2026-01-01T00:00:00')
+    )"));
+    const int firstArchiveId = archive.lastInsertId().toInt();
+    QVERIFY(archive.exec(R"(
+        INSERT INTO archives(path, file_name, extension, size_bytes, modified_at, quick_hash, full_hash, scanned_at)
+        VALUES('C:/tmp/b/two.zip', 'two.zip', 'zip', 10, '2026-01-01T00:00:00', 'quick2', 'full-shared', '2026-01-01T00:00:00')
+    )"));
+    const int secondArchiveId = archive.lastInsertId().toInt();
+
+    ArchivePasswordRepository archivePasswordRepository(database.connectionName());
+    QVERIFY(archivePasswordRepository.recordSuccess(firstArchiveId, 0, "shared-secret"));
+    QVERIFY(archivePasswordRepository.recordSuccess(secondArchiveId, 0, "excluded-secret"));
+
+    const auto fullHashHistory = archivePasswordRepository.listForFullHash("full-shared", secondArchiveId);
+    QCOMPARE(fullHashHistory.size(), 1);
+    QCOMPARE(fullHashHistory.first().archiveId, firstArchiveId);
+    QCOMPARE(fullHashHistory.first().password, QString("shared-secret"));
+}
+
 void ArchivePasswordRepositoryTests::removesHistoryRecordOnly()
 {
     QTemporaryDir dir;
@@ -194,6 +231,7 @@ void ArchivePasswordRepositoryTests::clearsHistoryWhenArchiveHashChangesForSameP
     first.sizeBytes = 10;
     first.modifiedAt = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
     first.quickHash = "old-hash";
+    first.fullHash = "old-full-hash";
     first.scannedAt = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
 
     QString error;
@@ -208,6 +246,7 @@ void ArchivePasswordRepositoryTests::clearsHistoryWhenArchiveHashChangesForSameP
     ArchiveRecord second = first;
     second.sizeBytes = 20;
     second.quickHash = "new-hash";
+    second.fullHash = "new-full-hash";
     second.modifiedAt = QDateTime::fromString("2026-01-02T00:00:00", Qt::ISODate);
     second.scannedAt = QDateTime::fromString("2026-01-02T00:00:00", Qt::ISODate);
     QVERIFY2(archiveRepository.upsert(second, &error), qPrintable(error));
@@ -215,7 +254,76 @@ void ArchivePasswordRepositoryTests::clearsHistoryWhenArchiveHashChangesForSameP
     const ArchiveRecord savedSecond = archiveRepository.findByPath(first.path);
     QCOMPARE(savedSecond.id, savedFirst.id);
     QCOMPARE(savedSecond.quickHash, QString("new-hash"));
+    QCOMPARE(savedSecond.fullHash, QString("new-full-hash"));
     QCOMPARE(archivePasswordRepository.list(first.path).size(), 0);
+}
+
+void ArchivePasswordRepositoryTests::keepsExistingFullHashDuringFastRescan()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AppPaths paths(dir.path());
+    QVERIFY(paths.ensureRuntimeDirectories());
+
+    DatabaseService database(paths);
+    QVERIFY2(database.open(), qPrintable(database.lastError()));
+
+    ArchiveRepository archiveRepository(database.connectionName());
+    ArchiveRecord first;
+    first.path = "C:/tmp/fast-rescan.zip";
+    first.fileName = "fast-rescan.zip";
+    first.extension = "zip";
+    first.sizeBytes = 10;
+    first.modifiedAt = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
+    first.quickHash = "quick-hash";
+    first.fullHash = "full-hash";
+    first.scannedAt = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
+
+    QString error;
+    QVERIFY2(archiveRepository.upsert(first, &error), qPrintable(error));
+
+    ArchiveRecord second = first;
+    second.fullHash.clear();
+    second.scannedAt = QDateTime::fromString("2026-01-02T00:00:00", Qt::ISODate);
+    QVERIFY2(archiveRepository.upsert(second, &error), qPrintable(error));
+
+    const ArchiveRecord saved = archiveRepository.findByPath(first.path);
+    QCOMPARE(saved.fullHash, QString("full-hash"));
+}
+
+void ArchivePasswordRepositoryTests::updatesAndKeepsArchiveCategory()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AppPaths paths(dir.path());
+    QVERIFY(paths.ensureRuntimeDirectories());
+
+    DatabaseService database(paths);
+    QVERIFY2(database.open(), qPrintable(database.lastError()));
+
+    ArchiveRepository archiveRepository(database.connectionName());
+    ArchiveRecord first;
+    first.path = "C:/tmp/category.zip";
+    first.fileName = "category.zip";
+    first.extension = "zip";
+    first.sizeBytes = 10;
+    first.modifiedAt = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
+    first.quickHash = "quick-hash";
+    first.fullHash = "full-hash";
+    first.scannedAt = QDateTime::fromString("2026-01-01T00:00:00", Qt::ISODate);
+
+    QString error;
+    QVERIFY2(archiveRepository.upsert(first, &error), qPrintable(error));
+    const ArchiveRecord savedFirst = archiveRepository.findByPath(first.path);
+    QVERIFY(archiveRepository.updateCategory(savedFirst.id, "资源包", &error));
+    QCOMPARE(archiveRepository.findByPath(first.path).category, QString("资源包"));
+
+    ArchiveRecord second = first;
+    second.scannedAt = QDateTime::fromString("2026-01-02T00:00:00", Qt::ISODate);
+    QVERIFY2(archiveRepository.upsert(second, &error), qPrintable(error));
+    QCOMPARE(archiveRepository.findByPath(first.path).category, QString("资源包"));
 }
 
 QTEST_MAIN(ArchivePasswordRepositoryTests)

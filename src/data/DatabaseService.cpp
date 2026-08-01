@@ -81,9 +81,11 @@ bool DatabaseService::migrate()
             path TEXT NOT NULL UNIQUE,
             file_name TEXT NOT NULL,
             extension TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
             size_bytes INTEGER NOT NULL,
             modified_at TEXT NOT NULL,
             quick_hash TEXT NOT NULL,
+            full_hash TEXT NOT NULL DEFAULT '',
             scanned_at TEXT NOT NULL
         )
     )") && execute(R"(
@@ -122,10 +124,12 @@ bool DatabaseService::migrate()
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    )") && execute(R"(
-        INSERT OR REPLACE INTO database_info (key, value)
-        VALUES ('schema_version', '5')
-    )");
+    )") && executeOptionalAlter("ALTER TABLE archives ADD COLUMN full_hash TEXT NOT NULL DEFAULT ''")
+        && executeOptionalAlter("ALTER TABLE archives ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+        && execute(R"(
+            INSERT OR REPLACE INTO database_info (key, value)
+            VALUES ('schema_version', '7')
+        )");
 }
 
 bool DatabaseService::execute(const QString& sql)
@@ -136,6 +140,22 @@ bool DatabaseService::execute(const QString& sql)
         return false;
     }
     return true;
+}
+
+bool DatabaseService::executeOptionalAlter(const QString& sql)
+{
+    QSqlQuery query(QSqlDatabase::database(m_connectionName));
+    if (query.exec(sql)) {
+        return true;
+    }
+
+    const QString error = query.lastError().text();
+    if (error.contains("duplicate column", Qt::CaseInsensitive)) {
+        return true;
+    }
+
+    m_lastError = error;
+    return false;
 }
 
 } // namespace PasswordManager

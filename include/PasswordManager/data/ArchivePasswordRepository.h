@@ -15,6 +15,7 @@ public:
     bool recordSuccess(int archiveId, int passwordId, const QString& password, QString* errorMessage = nullptr) const;
     QList<ArchivePasswordRecord> list(const QString& filter = QString()) const;
     QList<ArchivePasswordRecord> listForArchive(int archiveId) const;
+    QList<ArchivePasswordRecord> listForFullHash(const QString& fullHash, int excludeArchiveId = 0) const;
     bool remove(int id, QString* errorMessage = nullptr) const;
 
 private:

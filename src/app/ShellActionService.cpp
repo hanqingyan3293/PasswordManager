@@ -1,5 +1,8 @@
 #include "PasswordManager/app/ShellActionService.h"
 
+#include "PasswordManager/app/AppConfig.h"
+#include "PasswordManager/app/AppLogger.h"
+#include "PasswordManager/app/AppPaths.h"
 #include "PasswordManager/app/ArchiveScanner.h"
 #include "PasswordManager/app/PasswordMatcher.h"
 #include "PasswordManager/app/PasswordTestTaskManager.h"
@@ -31,14 +34,24 @@ QList<ArchivePasswordRecord> directoryHistoryForArchive(const QList<ArchivePassw
     return records;
 }
 
+QString formatElapsed(qint64 elapsedMs)
+{
+    if (elapsedMs < 1000) {
+        return QString("%1 ms").arg(elapsedMs);
+    }
+    return QString::number(elapsedMs / 1000.0, 'f', 2) + " s";
+}
+
 } // namespace
 
 ShellActionService::ShellActionService(
+    const AppPaths& paths,
     const ArchiveRepository& archiveRepository,
     const ArchivePasswordRepository& archivePasswordRepository,
     const PasswordRepository& passwordRepository,
     PasswordTestTaskManager& taskManager)
-    : m_archiveRepository(archiveRepository)
+    : m_paths(paths)
+    , m_archiveRepository(archiveRepository)
     , m_archivePasswordRepository(archivePasswordRepository)
     , m_passwordRepository(passwordRepository)
     , m_taskManager(taskManager)
@@ -68,14 +81,19 @@ ShellActionResult ShellActionService::enqueueArchivePasswordTests(const QString&
     }
 
     const QList<PasswordRecord> passwordRecords = m_passwordRepository.list();
+    const SmartMatchSettings settings = AppConfig(m_paths).smartMatchSettings();
     PasswordMatcher matcher;
     const QList<ArchivePasswordRecord> allHistory = m_archivePasswordRepository.list();
     const QStringList candidates = matcher.buildLayeredCandidates(
-        m_archivePasswordRepository.listForArchive(archiveRecord.id),
-        directoryHistoryForArchive(allHistory, archiveRecord),
-        passwordRecords,
-        matcher.extractLocalDescriptionPasswords(archiveRecord.path, 20),
-        100);
+        settings.enableExactHistory ? m_archivePasswordRepository.listForArchive(archiveRecord.id) : QList<ArchivePasswordRecord>(),
+        settings.enableExactHistory ? m_archivePasswordRepository.listForFullHash(archiveRecord.fullHash, archiveRecord.id) : QList<ArchivePasswordRecord>(),
+        settings.enableDirectoryHistory ? directoryHistoryForArchive(allHistory, archiveRecord) : QList<ArchivePasswordRecord>(),
+        settings.enableCategoryCandidates ? m_passwordRepository.listByCategory(archiveRecord.category) : QList<PasswordRecord>(),
+        settings.enablePasswordLibrary ? passwordRecords : QList<PasswordRecord>(),
+        settings.enableDescriptionFiles
+            ? matcher.extractLocalDescriptionPasswords(archiveRecord.path, settings.maxDescriptionCandidates, settings.maxDescriptionFileBytes)
+            : QStringList(),
+        settings.maxCandidates);
     if (candidates.isEmpty()) {
         result.message = "密码库和同目录说明文件里都没有可用候选密码。";
         result.archiveId = archiveRecord.id;
@@ -123,13 +141,15 @@ ShellActionResult ShellActionService::lookupKnownPasswords(const QString& archiv
 ShellActionResult ShellActionService::scanFolder(const QString& folderPath) const
 {
     ShellActionResult result;
+    AppLogger(m_paths.logsDir()).archive("Folder scan requested: path=" + folderPath);
     const QFileInfo folderInfo(folderPath);
     if (!folderInfo.exists() || !folderInfo.isDir()) {
         result.message = "文件夹不存在或不受支持。";
         return result;
     }
 
-    const ScanResult scanResult = ArchiveScanner().scanDirectory(folderInfo.absoluteFilePath());
+    const SmartMatchSettings settings = AppConfig(m_paths).smartMatchSettings();
+    const ScanResult scanResult = ArchiveScanner(settings.calculateFullHashDuringScan).scanDirectory(folderInfo.absoluteFilePath());
     QString error;
     result.scannedCount = m_archiveRepository.upsertMany(scanResult.archives, &error);
     if (!error.isEmpty()) {
@@ -138,7 +158,17 @@ ShellActionResult ShellActionService::scanFolder(const QString& folderPath) cons
     }
 
     result.success = true;
-    result.message = QString("已扫描 %1 个压缩包，跳过 %2 个文件。").arg(result.scannedCount).arg(scanResult.skippedCount);
+    result.message = QString("已扫描 %1 个压缩包，跳过 %2 个文件。耗时：%3。模式：%4。")
+        .arg(result.scannedCount)
+        .arg(scanResult.skippedCount)
+        .arg(formatElapsed(scanResult.elapsedMs))
+        .arg(scanResult.fullHashCalculated ? "精确模式" : "快速模式");
+    AppLogger(m_paths.logsDir()).archive(QString("Folder scan completed: scanned=%1 skipped=%2 elapsed_ms=%3 mode=%4 path=%5")
+            .arg(result.scannedCount)
+            .arg(scanResult.skippedCount)
+            .arg(scanResult.elapsedMs)
+            .arg(scanResult.fullHashCalculated ? "full_hash" : "quick_hash")
+            .arg(folderInfo.absoluteFilePath()));
     return result;
 }
 
@@ -147,12 +177,14 @@ ShellActionResult ShellActionService::scanAndSaveArchive(const QString& archiveP
     ShellActionResult result;
 
     const QFileInfo archiveInfo(archivePath);
+    AppLogger(m_paths.logsDir()).archive("Archive scan requested: path=" + archiveInfo.absoluteFilePath());
     if (!archiveInfo.exists() || !archiveInfo.isFile() || !ArchiveScanner::isSupportedArchive(archivePath)) {
         result.message = "压缩包文件不存在或不受支持。";
         return result;
     }
 
-    const ScanResult scanResult = ArchiveScanner().scanFiles({archiveInfo.absoluteFilePath()});
+    const SmartMatchSettings settings = AppConfig(m_paths).smartMatchSettings();
+    const ScanResult scanResult = ArchiveScanner(settings.calculateFullHashDuringScan).scanFiles({archiveInfo.absoluteFilePath()});
     if (scanResult.archives.isEmpty()) {
         result.message = "压缩包扫描没有生成记录。";
         return result;
@@ -173,7 +205,14 @@ ShellActionResult ShellActionService::scanAndSaveArchive(const QString& archiveP
     result.success = true;
     result.archiveId = archiveRecord.id;
     result.scannedCount = 1;
-    result.message = "压缩包已扫描并保存。";
+    result.message = QString("压缩包已扫描并保存。耗时：%1。模式：%2。")
+        .arg(formatElapsed(scanResult.elapsedMs))
+        .arg(scanResult.fullHashCalculated ? "精确模式" : "快速模式");
+    AppLogger(m_paths.logsDir()).archive(QString("Archive scan completed: archive_id=%1 elapsed_ms=%2 mode=%3 path=%4")
+            .arg(result.archiveId)
+            .arg(scanResult.elapsedMs)
+            .arg(scanResult.fullHashCalculated ? "full_hash" : "quick_hash")
+            .arg(archiveRecord.path));
     return result;
 }
 

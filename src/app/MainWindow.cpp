@@ -92,7 +92,7 @@ void MainWindow::buildUi()
     m_navigation->addItems({"首页", "密码库", "历史记录", "解压队列", "设置"});
 
     m_pages = new QStackedWidget(central);
-    m_homePage = new HomePage(m_archiveRepository, m_archivePasswordRepository, m_passwordRepository, m_taskManager, this);
+    m_homePage = new HomePage(m_paths, m_archiveRepository, m_archivePasswordRepository, m_passwordRepository, m_taskManager, this);
     m_passwordsPage = new PasswordsPage(m_passwordRepository, this);
     m_historyPage = new HistoryPage(m_paths, m_archivePasswordRepository, m_extractLogRepository, this);
     m_taskQueuePage = new TaskQueuePage(m_taskManager, this);
@@ -100,7 +100,7 @@ void MainWindow::buildUi()
     m_pages->addWidget(m_passwordsPage);
     m_pages->addWidget(m_historyPage);
     m_pages->addWidget(m_taskQueuePage);
-    m_pages->addWidget(new SettingsPage(m_paths, m_databaseConnectionName, this));
+    m_pages->addWidget(new SettingsPage(m_paths, m_archiveRepository, m_databaseConnectionName, this));
 
     layout->addWidget(m_navigation);
     layout->addWidget(m_pages, 1);
@@ -142,6 +142,7 @@ void MainWindow::openShellAction(const QString& action, const QString& filePath)
 
     if (action == "add-test-queue" || action == "use-password-library-test") {
         const ShellActionResult result = ShellActionService(
+            m_paths,
             m_archiveRepository,
             m_archivePasswordRepository,
             m_passwordRepository,
@@ -160,6 +161,7 @@ void MainWindow::openShellAction(const QString& action, const QString& filePath)
 
     if (action == "lookup-password") {
         const ShellActionResult result = ShellActionService(
+            m_paths,
             m_archiveRepository,
             m_archivePasswordRepository,
             m_passwordRepository,
@@ -176,6 +178,7 @@ void MainWindow::openShellAction(const QString& action, const QString& filePath)
 
     if (action == "scan-folder") {
         const ShellActionResult result = ShellActionService(
+            m_paths,
             m_archiveRepository,
             m_archivePasswordRepository,
             m_passwordRepository,

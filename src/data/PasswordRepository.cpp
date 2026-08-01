@@ -46,6 +46,33 @@ QList<PasswordRecord> PasswordRepository::list(const QString& filter) const
     return records;
 }
 
+QList<PasswordRecord> PasswordRepository::listByCategory(const QString& category) const
+{
+    QList<PasswordRecord> records;
+    const QString trimmedCategory = category.trimmed();
+    if (trimmedCategory.isEmpty()) {
+        return records;
+    }
+
+    QSqlQuery query(QSqlDatabase::database(m_connectionName));
+    query.prepare(R"(
+        SELECT id, password, category, note, favorite, success_count, failure_count, created_at, updated_at
+        FROM passwords
+        WHERE category = :category
+        ORDER BY favorite DESC, success_count DESC, failure_count ASC, updated_at DESC, id DESC
+    )");
+    query.bindValue(":category", trimmedCategory);
+
+    if (!query.exec()) {
+        return records;
+    }
+
+    while (query.next()) {
+        records.append(readRecord(query));
+    }
+    return records;
+}
+
 PasswordRecord PasswordRepository::findByPassword(const QString& password) const
 {
     QSqlQuery query(QSqlDatabase::database(m_connectionName));

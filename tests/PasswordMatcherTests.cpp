@@ -86,8 +86,18 @@ void PasswordMatcherTests::ordersLayeredCandidates()
     common.password = "common";
     common.successCount = 20;
 
-    const QStringList candidates = PasswordMatcher().buildLayeredCandidates({exact}, {directory}, {common, favorite}, {"description", "exact"}, 10);
-    QCOMPARE(candidates, QStringList({"exact", "directory", "favorite", "common", "description"}));
+    PasswordRecord category;
+    category.id = 6;
+    category.password = "category";
+    category.successCount = 30;
+
+    PasswordManager::ArchivePasswordRecord fullHash;
+    fullHash.id = 5;
+    fullHash.password = "full-hash";
+    fullHash.successCount = 5;
+
+    const QStringList candidates = PasswordMatcher().buildLayeredCandidates({exact}, {fullHash}, {directory}, {category}, {common, favorite}, {"description", "exact"}, 10);
+    QCOMPARE(candidates, QStringList({"exact", "full-hash", "directory", "category", "favorite", "common", "description"}));
 }
 
 void PasswordMatcherTests::appendsDescriptionCandidatesAfterPasswordLibrary()

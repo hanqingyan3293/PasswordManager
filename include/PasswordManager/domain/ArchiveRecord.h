@@ -10,11 +10,12 @@ struct ArchiveRecord {
     QString path;
     QString fileName;
     QString extension;
+    QString category;
     qint64 sizeBytes = 0;
     QDateTime modifiedAt;
     QString quickHash;
+    QString fullHash;
     QDateTime scannedAt;
 };
 
 } // namespace PasswordManager
-
