@@ -14,12 +14,15 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
+#include <QFont>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QLocale>
 #include <QScrollArea>
 #include <QSizePolicy>
 #include <QSpinBox>
@@ -31,6 +34,40 @@
 #include <utility>
 
 namespace PasswordManager {
+
+namespace {
+
+void applyNumberSpinBoxStyle(QSpinBox* spinBox)
+{
+    if (!spinBox) {
+        return;
+    }
+
+    QFont numberFont("Arial");
+    numberFont.setPointSize(10);
+    spinBox->setFont(numberFont);
+    spinBox->setLocale(QLocale::c());
+    spinBox->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    spinBox->setStyleSheet(R"(
+        QSpinBox {
+            font-family: Arial;
+            font-size: 10pt;
+        }
+        QSpinBox QLineEdit {
+            font-family: Arial;
+            font-size: 10pt;
+        }
+    )");
+
+    if (auto* editor = spinBox->findChild<QLineEdit*>()) {
+        editor->setFont(numberFont);
+        editor->setLocale(QLocale::c());
+        editor->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        editor->setStyleSheet("font-family: Arial; font-size: 10pt;");
+    }
+}
+
+} // namespace
 
 SettingsPage::SettingsPage(const AppPaths& paths, const ArchiveRepository& archiveRepository, QString databaseConnectionName, QWidget* parent)
     : QWidget(parent)
@@ -228,6 +265,9 @@ void SettingsPage::buildUi()
     m_maxDescriptionFileKb = new QSpinBox(smartFrame);
     m_maxDescriptionFileKb->setRange(1, 1024);
     m_maxDescriptionFileKb->setSuffix(" KB");
+    applyNumberSpinBoxStyle(m_maxCandidates);
+    applyNumberSpinBoxStyle(m_maxDescriptionCandidates);
+    applyNumberSpinBoxStyle(m_maxDescriptionFileKb);
 
     smartLayout->addWidget(m_enableExactHistory, 0, 0);
     smartLayout->addWidget(m_enableDirectoryHistory, 0, 1);

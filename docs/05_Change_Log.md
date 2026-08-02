@@ -1,5 +1,27 @@
 # Change Log
 
+## 2026-08-02 Phase 52
+
+### 已完成
+
+- 新增 `UiStyle`，集中管理 Widgets 基础字体和表格样式。
+- 主程序固定全局字体为 `Microsoft YaHei UI`。
+- 表格统一字体、行高、表头、网格线、交替行背景和选中颜色。
+- 数字单元格使用 `Segoe UI` 并右对齐，修复数字显示像符号的字体 fallback 风险。
+- 设置页智能匹配数字输入框使用 `Segoe UI`。
+- 表格列宽模式统一为 `Interactive`，保留列之间的双向箭头拖动调整。
+- 不引入 QML，不改变现有页面结构和功能。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：14/14 通过。
+- Release 打包：通过。
+- Release CTest：14/14 通过。
+- smoke-test：退出码 0。
+- benchmark：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过。
+
 ## 2026-08-02 Phase 51
 
 ### 已完成

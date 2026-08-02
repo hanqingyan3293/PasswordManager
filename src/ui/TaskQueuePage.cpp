@@ -2,12 +2,14 @@
 
 #include "PasswordManager/app/PasswordTestTaskManager.h"
 #include "PasswordManager/app/SevenZipRunner.h"
+#include "PasswordManager/ui/UiStyle.h"
 
 #include <QApplication>
 #include <QBrush>
 #include <QClipboard>
 #include <QColor>
 #include <QComboBox>
+#include <QFont>
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QHBoxLayout>
@@ -47,7 +49,12 @@ private:
 
 QTableWidgetItem* numericItem(int value)
 {
-    return new NumericTableWidgetItem(value);
+    auto* item = new NumericTableWidgetItem(value);
+    item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    QFont font("Segoe UI");
+    font.setPointSize(10);
+    item->setFont(font);
+    return item;
 }
 
 void fillPageSizeOptions(QComboBox* combo)
@@ -199,6 +206,7 @@ void TaskQueuePage::buildUi()
     m_table->verticalHeader()->setVisible(false);
     m_table->horizontalHeader()->setStretchLastSection(false);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    UiStyle::applyTableStyle(m_table);
     m_table->setColumnWidth(0, 64);
     m_table->setColumnWidth(1, 88);
     m_table->setColumnWidth(2, 112);

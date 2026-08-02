@@ -10,10 +10,12 @@
 #include "PasswordManager/data/ArchiveRepository.h"
 #include "PasswordManager/data/PasswordRepository.h"
 #include "PasswordManager/domain/ArchivePasswordRecord.h"
+#include "PasswordManager/ui/UiStyle.h"
 
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QComboBox>
+#include <QFont>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -54,7 +56,12 @@ private:
 
 QTableWidgetItem* numericItem(int value)
 {
-    return new NumericTableWidgetItem(value);
+    auto* item = new NumericTableWidgetItem(value);
+    item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    QFont font("Segoe UI");
+    font.setPointSize(10);
+    item->setFont(font);
+    return item;
 }
 
 QString formatElapsed(qint64 elapsedMs)
@@ -161,10 +168,15 @@ void HomePage::buildUi()
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSortingEnabled(true);
     m_table->verticalHeader()->setVisible(false);
-    m_table->horizontalHeader()->setStretchLastSection(true);
-    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_table->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Stretch);
-    m_table->horizontalHeader()->setSectionResizeMode(7, QHeaderView::Stretch);
+    UiStyle::applyTableStyle(m_table);
+    m_table->setColumnWidth(0, 64);
+    m_table->setColumnWidth(1, 220);
+    m_table->setColumnWidth(2, 72);
+    m_table->setColumnWidth(3, 120);
+    m_table->setColumnWidth(4, 96);
+    m_table->setColumnWidth(5, 160);
+    m_table->setColumnWidth(6, 160);
+    m_table->setColumnWidth(7, 420);
 
     layout->addWidget(title);
     layout->addLayout(actions);

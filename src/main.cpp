@@ -14,6 +14,7 @@
 #include "PasswordManager/domain/ArchivePasswordRecord.h"
 #include "PasswordManager/domain/ArchiveRecord.h"
 #include "PasswordManager/domain/PasswordRecord.h"
+#include "PasswordManager/ui/UiStyle.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -459,6 +460,7 @@ int main(int argc, char* argv[])
     app.setApplicationName("PasswordManager");
     app.setApplicationVersion("0.1.0");
     app.setOrganizationName("PasswordManager");
+    PasswordManager::UiStyle::applyApplicationFont(app);
 
     const PasswordManager::AppPaths paths(QCoreApplication::applicationDirPath());
     if (!paths.ensureRuntimeDirectories()) {

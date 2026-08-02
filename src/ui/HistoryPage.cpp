@@ -5,12 +5,14 @@
 #include "PasswordManager/app/ExtractService.h"
 #include "PasswordManager/data/ArchivePasswordRepository.h"
 #include "PasswordManager/data/ExtractLogRepository.h"
+#include "PasswordManager/ui/UiStyle.h"
 
 #include <QApplication>
 #include <QClipboard>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFont>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -50,7 +52,12 @@ private:
 
 QTableWidgetItem* numericItem(int value)
 {
-    return new NumericTableWidgetItem(value);
+    auto* item = new NumericTableWidgetItem(value);
+    item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    QFont font("Segoe UI");
+    font.setPointSize(10);
+    item->setFont(font);
+    return item;
 }
 
 void fillPageSizeOptions(QComboBox* combo)
@@ -123,9 +130,14 @@ void HistoryPage::buildUi()
     m_table->setSortingEnabled(true);
     m_table->setContextMenuPolicy(Qt::CustomContextMenu);
     m_table->verticalHeader()->setVisible(false);
-    m_table->horizontalHeader()->setStretchLastSection(true);
-    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_table->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Stretch);
+    UiStyle::applyTableStyle(m_table);
+    m_table->setColumnWidth(0, 64);
+    m_table->setColumnWidth(1, 220);
+    m_table->setColumnWidth(2, 160);
+    m_table->setColumnWidth(3, 88);
+    m_table->setColumnWidth(4, 160);
+    m_table->setColumnWidth(5, 160);
+    m_table->setColumnWidth(6, 420);
 
     layout->addLayout(actions);
     m_emptyState = new QLabel("还没有成功密码历史。完成正确密码测试后会出现在这里。", this);

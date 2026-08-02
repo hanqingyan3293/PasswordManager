@@ -44,6 +44,7 @@ qt_add_executable(PasswordManager
     src/ui/PasswordsPage.cpp
     src/ui/SettingsPage.cpp
     src/ui/TaskQueuePage.cpp
+    src/ui/UiStyle.cpp
     include/PasswordManager/app/MainWindow.h
     include/PasswordManager/app/AppConfig.h
     include/PasswordManager/app/AppPaths.h
@@ -76,6 +77,7 @@ qt_add_executable(PasswordManager
     include/PasswordManager/ui/PasswordsPage.h
     include/PasswordManager/ui/SettingsPage.h
     include/PasswordManager/ui/TaskQueuePage.h
+    include/PasswordManager/ui/UiStyle.h
 )
 
 target_include_directories(PasswordManager

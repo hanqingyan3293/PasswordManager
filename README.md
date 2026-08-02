@@ -193,3 +193,7 @@ PasswordManager.exe --shell-action open-main "C:\path\archive.zip"
 日志目录会生成 `app.log`、`error.log`、`archive.log`、`extract.log`、`database.log`，诊断包会一并导出。日志不记录明文密码。
 
 首页压缩包表格新增 `分类` 列，可对选中压缩包设置分类。智能匹配候选顺序调整为：当前压缩包历史、同 fullHash 历史、同目录历史、同分类密码、密码库全局排序、同目录说明文件。
+
+## Phase 52 UI 基础修复补充
+
+程序固定全局字体为 `Microsoft YaHei UI`，表格数字单元格和设置页智能匹配数字输入框使用 `Segoe UI`，用于修复数字显示像符号的问题。首页、密码库、历史记录、解压队列表格统一了行高、表头、网格线、交替行背景和选中颜色，并保持列宽拖动。

@@ -3,6 +3,7 @@
 #include "PasswordManager/data/PasswordRepository.h"
 #include "PasswordManager/data/PasswordLibraryTransferService.h"
 #include "PasswordManager/ui/PasswordDialog.h"
+#include "PasswordManager/ui/UiStyle.h"
 
 #include <QApplication>
 #include <QBrush>
@@ -10,6 +11,7 @@
 #include <QColor>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QFont>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
@@ -49,7 +51,12 @@ private:
 
 QTableWidgetItem* numericItem(int value)
 {
-    return new NumericTableWidgetItem(value);
+    auto* item = new NumericTableWidgetItem(value);
+    item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    QFont font("Segoe UI");
+    font.setPointSize(10);
+    item->setFont(font);
+    return item;
 }
 
 void fillPageSizeOptions(QComboBox* combo)
@@ -145,6 +152,7 @@ void PasswordsPage::buildUi()
     m_table->verticalHeader()->setVisible(false);
     m_table->horizontalHeader()->setStretchLastSection(false);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    UiStyle::applyTableStyle(m_table);
     m_table->setColumnWidth(0, 64);
     m_table->setColumnWidth(1, 180);
     m_table->setColumnWidth(2, 140);
