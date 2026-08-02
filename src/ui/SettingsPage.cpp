@@ -52,6 +52,12 @@ void applyNumberSpinBoxStyle(QSpinBox* spinBox)
         QSpinBox {
             font-family: Arial;
             font-size: 10pt;
+            min-height: 30px;
+            padding: 4px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #111827;
         }
         QSpinBox QLineEdit {
             font-family: Arial;
@@ -105,15 +111,36 @@ void SettingsPage::buildUi()
     layout->addWidget(title);
 
     addSectionTitle(layout, "运行目录");
-    addKeyValue(layout, "程序目录", m_paths.applicationDir());
-    addKeyValue(layout, "数据目录", m_paths.dataDir());
-    addKeyValue(layout, "配置目录", m_paths.configDir());
-    addKeyValue(layout, "日志目录", m_paths.logsDir());
-    addKeyValue(layout, "备份目录", m_paths.backupDir());
-    addKeyValue(layout, "工具目录", m_paths.toolsDir());
+    auto* directoriesFrame = new QFrame(this);
+    directoriesFrame->setObjectName("card");
+    auto* directoriesLayout = new QGridLayout(directoriesFrame);
+    directoriesLayout->setContentsMargins(14, 12, 14, 12);
+    directoriesLayout->setHorizontalSpacing(16);
+    directoriesLayout->setVerticalSpacing(7);
+
+    const QList<QPair<QString, QString>> directoryRows = {
+        { "程序目录", m_paths.applicationDir() },
+        { "数据目录", m_paths.dataDir() },
+        { "配置目录", m_paths.configDir() },
+        { "日志目录", m_paths.logsDir() },
+        { "备份目录", m_paths.backupDir() },
+        { "工具目录", m_paths.toolsDir() },
+    };
+    for (int rowIndex = 0; rowIndex < directoryRows.size(); ++rowIndex) {
+        auto* keyLabel = new QLabel(directoryRows.at(rowIndex).first, directoriesFrame);
+        auto* valueLabel = new QLabel(directoryRows.at(rowIndex).second, directoriesFrame);
+        valueLabel->setObjectName("value");
+        valueLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        valueLabel->setWordWrap(true);
+        valueLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        directoriesLayout->addWidget(keyLabel, rowIndex, 0);
+        directoriesLayout->addWidget(valueLabel, rowIndex, 1);
+    }
+    directoriesLayout->setColumnStretch(1, 1);
+    layout->addWidget(directoriesFrame);
 
     auto* directoryActions = new QGridLayout;
-    directoryActions->setHorizontalSpacing(8);
+    directoryActions->setHorizontalSpacing(10);
     directoryActions->setVerticalSpacing(8);
     auto* openApplicationButton = new QPushButton("打开程序目录", this);
     auto* openDataButton = new QPushButton("打开数据目录", this);
@@ -187,7 +214,12 @@ void SettingsPage::buildUi()
     for (int column = 0; column < 4; ++column) {
         directoryActions->setColumnStretch(column, 1);
     }
-    layout->addLayout(directoryActions);
+    auto* directoryActionsFrame = new QFrame(this);
+    directoryActionsFrame->setObjectName("card");
+    auto* directoryActionsFrameLayout = new QVBoxLayout(directoryActionsFrame);
+    directoryActionsFrameLayout->setContentsMargins(12, 12, 12, 12);
+    directoryActionsFrameLayout->addLayout(directoryActions);
+    layout->addWidget(directoryActionsFrame);
 
     addSectionTitle(layout, "内置 7-Zip");
     addKeyValue(layout, "执行文件", m_paths.sevenZipExecutable());

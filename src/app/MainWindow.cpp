@@ -265,46 +265,42 @@ void MainWindow::applyBaseStyle()
 {
     setStyleSheet(R"(
         QMainWindow {
-            background: #f6f7f9;
+            background: #f4f6f8;
         }
         QListWidget {
             background: #ffffff;
             border: none;
-            border-right: 1px solid #dfe3e8;
-            padding: 10px;
-            font-size: 14px;
+            border-right: 1px solid #dce3ea;
+            padding: 12px 10px;
+            font-size: 10pt;
         }
         QListWidget::item {
             border-radius: 6px;
             margin: 2px 0;
-            padding: 9px 10px;
+            padding: 10px 11px;
+            color: #334155;
         }
         QListWidget::item:selected {
-            background: #e8f0fe;
+            background: #eaf2ff;
             color: #174ea6;
+            font-weight: 600;
+        }
+        QListWidget::item:hover {
+            background: #f1f5f9;
         }
         QLabel {
-            color: #1f2933;
-            font-size: 14px;
+            color: #172033;
+            font-size: 10pt;
         }
         QFrame#card {
             background: #ffffff;
-            border: 1px solid #e1e5ea;
+            border: 1px solid #dce3ea;
             border-radius: 8px;
-        }
-        QPushButton {
-            background: #1f6feb;
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 14px;
-        }
-        QPushButton:hover {
-            background: #1a5fd0;
         }
         QStatusBar {
             background: #ffffff;
-            border-top: 1px solid #dfe3e8;
+            border-top: 1px solid #dce3ea;
+            color: #475569;
         }
     )");
 }

@@ -461,6 +461,7 @@ int main(int argc, char* argv[])
     app.setApplicationVersion("0.1.0");
     app.setOrganizationName("PasswordManager");
     PasswordManager::UiStyle::applyApplicationFont(app);
+    PasswordManager::UiStyle::applyApplicationStyle(app);
 
     const PasswordManager::AppPaths paths(QCoreApplication::applicationDirPath());
     if (!paths.ensureRuntimeDirectories()) {
