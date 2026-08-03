@@ -1,5 +1,27 @@
 # Change Log
 
+## 2026-08-02 Phase 54
+
+### 已完成
+
+- QML 混合架构试点已验证可行，但因发布包体积和运行时占用目标，决定回退。
+- 移除 `QQuickWidget` 首页概览面板、`HomeOverviewViewModel`、QML resource 和 QML 文件。
+- CMake 移除 `Qml`、`Quick`、`QuickWidgets` 依赖。
+- 发布打包脚本移除 `windeployqt --qmldir`，恢复纯 Widgets 部署。
+- 当前 UI 路线继续保持 Qt Widgets，后续如需概览面板优先用 Widgets 实现。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：14/14 通过。
+- Release 打包：通过。
+- Release CTest：14/14 通过。
+- smoke-test：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过，`9702db22aa77025ebbeab4f1d9193e98f541afa39de309c485665f1362a2e73e`。
+- 发布目录确认没有 `Qt6Qml`、`Qt6Quick`、`Qt6QuickWidgets`、`Qt6OpenGL` 相关 DLL。
+- 发布目录确认没有 `qml` 和 `qmltooling` 目录。
+- 便携版 zip 回到约 57 MiB。
+
 ## 2026-08-02 Phase 53
 
 ### 已完成

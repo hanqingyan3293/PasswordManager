@@ -201,3 +201,7 @@ PasswordManager.exe --shell-action open-main "C:\path\archive.zip"
 ## Phase 53 Widgets 现代化外观补充
 
 程序新增全局 Widgets 样式，统一按钮、输入框、下拉框、数字输入框、复选框、卡片、状态栏和菜单。设置页运行目录合并为一张信息卡，目录操作按钮放入独立操作卡；不引入 QML，不改变业务功能。
+
+## Phase 54 轻量 UI 路线补充
+
+QML 混合架构试点已验证可行，但为降低发布包体积和运行时占用，当前阶段回退 QML，继续采用纯 Qt Widgets。后续如果需要首页概览面板，优先用 Widgets 实现。
