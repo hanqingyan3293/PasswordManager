@@ -16,6 +16,8 @@
 #include <QFileInfo>
 #include <QComboBox>
 #include <QFont>
+#include <QFrame>
+#include <QGridLayout>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -84,6 +86,51 @@ void fillPageSizeOptions(QComboBox* combo)
     combo->setCurrentIndex(1);
 }
 
+QFrame* createMetricCard(QWidget* parent, const QString& title, const QString& note, const QString& accentColor, QLabel** valueLabel)
+{
+    auto* frame = new QFrame(parent);
+    frame->setObjectName("card");
+    frame->setMinimumHeight(76);
+
+    auto* layout = new QHBoxLayout(frame);
+    layout->setContentsMargins(12, 10, 12, 10);
+    layout->setSpacing(10);
+
+    auto* accent = new QFrame(frame);
+    accent->setFixedWidth(4);
+    accent->setStyleSheet(QString("background: %1; border-radius: 2px;").arg(accentColor));
+    layout->addWidget(accent);
+
+    auto* textLayout = new QVBoxLayout;
+    textLayout->setContentsMargins(0, 0, 0, 0);
+    textLayout->setSpacing(3);
+
+    auto* titleLabel = new QLabel(title, frame);
+    titleLabel->setStyleSheet("color: #64748b; font-size: 9pt;");
+
+    auto* numberLabel = new QLabel("0", frame);
+    QFont numberFont("Segoe UI");
+    numberFont.setPointSize(16);
+    numberFont.setBold(true);
+    numberLabel->setFont(numberFont);
+    numberLabel->setStyleSheet("color: #172033;");
+    numberLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* noteLabel = new QLabel(note, frame);
+    noteLabel->setStyleSheet("color: #64748b; font-size: 9pt;");
+    noteLabel->setWordWrap(true);
+
+    textLayout->addWidget(titleLabel);
+    textLayout->addWidget(numberLabel);
+    textLayout->addWidget(noteLabel);
+    layout->addLayout(textLayout, 1);
+
+    if (valueLabel) {
+        *valueLabel = numberLabel;
+    }
+    return frame;
+}
+
 } // namespace
 
 QList<ArchivePasswordRecord> directoryHistoryForArchive(const QList<ArchivePasswordRecord>& allHistory, const ArchiveRecord& archive)
@@ -130,6 +177,17 @@ void HomePage::buildUi()
     titleFont.setPointSize(18);
     titleFont.setBold(true);
     title->setFont(titleFont);
+
+    auto* overview = new QGridLayout;
+    overview->setHorizontalSpacing(10);
+    overview->setVerticalSpacing(10);
+    overview->addWidget(createMetricCard(this, "筛选压缩包", "当前搜索条件", "#2563eb", &m_archiveCountValue), 0, 0);
+    overview->addWidget(createMetricCard(this, "当前页显示", "表格可见记录", "#0f766e", &m_visibleCountValue), 0, 1);
+    overview->addWidget(createMetricCard(this, "密码库", "可用密码记录", "#9333ea", &m_passwordCountValue), 1, 0);
+    overview->addWidget(createMetricCard(this, "待处理任务", "等待或运行中", "#b45309", &m_pendingTaskCountValue), 1, 1);
+    for (int column = 0; column < 2; ++column) {
+        overview->setColumnStretch(column, 1);
+    }
 
     auto* actions = new QHBoxLayout;
     m_search = new QLineEdit(this);
@@ -179,6 +237,7 @@ void HomePage::buildUi()
     m_table->setColumnWidth(7, 420);
 
     layout->addWidget(title);
+    layout->addLayout(overview);
     layout->addLayout(actions);
     layout->addLayout(testActions);
     layout->addWidget(m_summary);
@@ -235,6 +294,9 @@ void HomePage::buildUi()
             renderPage();
         }
     });
+    connect(&m_taskManager, &PasswordTestTaskManager::tasksChanged, this, [this]() {
+        updateOverviewMetrics(m_table ? m_table->rowCount() : 0);
+    });
 }
 
 void HomePage::reload()
@@ -269,11 +331,36 @@ void HomePage::renderPage()
     }
     m_table->setSortingEnabled(true);
 
+    updateOverviewMetrics(end - start);
     m_emptyState->setVisible(m_records.isEmpty());
     m_summary->setText(m_records.isEmpty()
             ? "当前没有压缩包记录"
             : QString("已记录 %1 个压缩包").arg(m_records.size()));
     updatePaginationControls();
+}
+
+void HomePage::updateOverviewMetrics(int visibleArchiveCount)
+{
+    const QList<PasswordTestTask> tasks = m_taskManager.tasks();
+    int pendingTasks = 0;
+    for (const PasswordTestTask& task : tasks) {
+        if (task.status == PasswordTestTaskStatus::Waiting || task.status == PasswordTestTaskStatus::Running) {
+            ++pendingTasks;
+        }
+    }
+
+    if (m_archiveCountValue) {
+        m_archiveCountValue->setText(QString::number(m_records.size()));
+    }
+    if (m_visibleCountValue) {
+        m_visibleCountValue->setText(QString::number(visibleArchiveCount));
+    }
+    if (m_passwordCountValue) {
+        m_passwordCountValue->setText(QString::number(m_passwordRepository.list().size()));
+    }
+    if (m_pendingTaskCountValue) {
+        m_pendingTaskCountValue->setText(QString::number(pendingTasks));
+    }
 }
 
 void HomePage::updatePaginationControls()

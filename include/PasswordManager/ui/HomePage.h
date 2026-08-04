@@ -35,6 +35,7 @@ public:
 private:
     void buildUi();
     void renderPage();
+    void updateOverviewMetrics(int visibleArchiveCount);
     void updatePaginationControls();
     int pageSize() const;
     int totalPages() const;
@@ -56,6 +57,10 @@ private:
     QLineEdit* m_search = nullptr;
     QLineEdit* m_passwordInput = nullptr;
     QLabel* m_summary = nullptr;
+    QLabel* m_archiveCountValue = nullptr;
+    QLabel* m_visibleCountValue = nullptr;
+    QLabel* m_passwordCountValue = nullptr;
+    QLabel* m_pendingTaskCountValue = nullptr;
     QLabel* m_emptyState = nullptr;
     QTableWidget* m_table = nullptr;
     QComboBox* m_pageSize = nullptr;

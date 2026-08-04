@@ -1,5 +1,25 @@
 # Change Log
 
+## 2026-08-03 Phase 55
+
+### 已完成
+
+- 首页新增纯 Widgets 概览卡片，不引入 QML。
+- 概览显示筛选压缩包数、当前页显示数、密码库记录数、待处理任务数。
+- 概览随搜索、分页、刷新和任务状态变化同步更新。
+- 保持纯 Widgets 发布依赖，不增加 Qt Quick/QML 运行库。
+
+### 验证
+
+- Debug 构建：通过。
+- Debug CTest：14/14 通过。
+- Release 打包：通过。
+- Release CTest：14/14 通过。
+- smoke-test：退出码 0。
+- ZIP 完整性和 SHA256 校验：通过，`64ff3de888ef330d1c65947af1b6d476ff5c2273172b93e47cf3c415373bf25a`。
+- 发布目录确认没有 `qml` 目录。
+- 便携版 zip 约 57 MiB。
+
 ## 2026-08-02 Phase 54
 
 ### 已完成
