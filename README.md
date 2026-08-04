@@ -2,7 +2,7 @@
 
 Windows 本地离线压缩包密码管理与智能解压辅助工具。
 
-当前状态：右键菜单方案A、功能级设置、完整文件指纹、压缩包分类候选、分层智能匹配、分层日志、密码库测试、同目录说明文件候选、历史记录、分页表格、Widgets 基础现代化样式、纯 Widgets 首页概览、内置 7-Zip、Release 便携包基础流程已实现。GPU / 多线程加速暂不进入当前 MVP，后续单独讨论。
+当前状态：右键菜单方案A、功能级设置、完整文件指纹、压缩包分类候选、分层智能匹配、分层日志、密码库测试、同目录说明文件候选、历史记录、分页表格、Widgets 基础现代化样式、纯 Widgets 首页概览、体积基线、内置 7-Zip、Release 便携包基础流程已实现。GPU / 多线程加速暂不进入当前 MVP，后续单独讨论。
 
 ## 当前锁定路线
 
@@ -209,3 +209,7 @@ QML 混合架构试点已验证可行，但为降低发布包体积和运行时�
 ## Phase 55 纯 Widgets 首页概览补充
 
 首页新增纯 Widgets 概览卡片，显示筛选压缩包数、当前页显示数、密码库记录数和待处理任务数。发布包继续保持纯 Widgets 依赖。
+
+## Phase 56 体积/占用基线补充
+
+新增 `scripts/measure_release.ps1`，可生成 `out/release-size-baseline.md`。当前基线：便携目录约 101 MiB，zip 约 56 MiB，QML/Quick 残留为 0。最大体积来源是 Graphics Runtime、MSVC Redistributable 和 Qt DLL。

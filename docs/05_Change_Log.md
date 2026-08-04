@@ -1,5 +1,34 @@
 # Change Log
 
+## 2026-08-04 Phase 56
+
+### 已完成
+
+- 新增 `scripts/measure_release.ps1`，用于生成发布包体积基线。
+- 报告输出便携目录大小、zip 大小、exe 大小、文件数量、smoke-test 耗时、SHA256。
+- 按类别统计 Application、Qt DLL、Graphics Runtime、MSVC Redistributable、7-Zip、Qt Plugins、Qt Translations、Runtime Data。
+- 列出发布目录最大的文件，便于后续判断优化优先级。
+- 检查 QML/Quick 依赖和目录残留。
+
+### 当前基线
+
+- 便携目录：101.32 MiB。
+- zip：56.31 MiB。
+- `PasswordManager.exe`：532.00 KiB。
+- 文件数：111。
+- smoke-test：44 ms。
+- SHA256：`cd6036d706096b86c22d3aa9f6758c53d797aded023064f221bb0e917fee004e`。
+- QML/Quick 残留：0。
+
+### 体积来源
+
+- Graphics Runtime：39.30 MiB，38.8%。
+- MSVC Redistributable：24.45 MiB，24.1%。
+- Qt DLL：23.40 MiB，23.1%。
+- Qt Translations：4.96 MiB，4.9%。
+- Qt Plugins：4.51 MiB，4.5%。
+- 7-Zip：4.02 MiB，4.0%。
+
 ## 2026-08-03 Phase 55
 
 ### 已完成
