@@ -2,7 +2,7 @@
 
 Windows 本地离线压缩包密码管理与智能解压辅助工具。
 
-当前状态：右键菜单方案A、功能级设置、完整文件指纹、压缩包分类候选、分层智能匹配、分层日志、密码库测试、同目录说明文件候选、历史记录、分页表格、Widgets 基础现代化样式、纯 Widgets 首页概览、体积基线、内置 7-Zip、Release 便携包基础流程已实现。GPU / 多线程加速暂不进入当前 MVP，后续单独讨论。
+当前状态：右键菜单方案A、功能级设置、完整文件指纹、压缩包分类候选、分层智能匹配、分层日志、密码库测试、同目录说明文件候选、历史记录、分页表格、Widgets 基础现代化样式、纯 Widgets 首页概览、体积基线、可选轻量包、内置 7-Zip、Release 便携包基础流程已实现。GPU / 多线程加速暂不进入当前 MVP，后续单独讨论。
 
 ## 当前锁定路线
 
@@ -213,3 +213,7 @@ QML 混合架构试点已验证可行，但为降低发布包体积和运行时�
 ## Phase 56 体积/占用基线补充
 
 新增 `scripts/measure_release.ps1`，可生成 `out/release-size-baseline.md`。当前基线：便携目录约 101 MiB，zip 约 56 MiB，QML/Quick 残留为 0。最大体积来源是 Graphics Runtime、MSVC Redistributable 和 Qt DLL。
+
+## Phase 57 可选轻量包补充
+
+新增 `scripts/package_lite_release.ps1`，从完整发布包生成可选轻量包。轻量包移除 VC 运行库安装器、非简体中文 Qt 翻译和非 SQLite SQL 驱动；zip 从约 56 MiB 降到约 31 MiB。轻量包要求目标系统已有 Microsoft Visual C++ Runtime，正式推荐前需要干净 Windows 机器验证。

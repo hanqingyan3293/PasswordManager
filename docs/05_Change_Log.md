@@ -1,5 +1,47 @@
 # Change Log
 
+## 2026-08-08 Phase 57
+
+### 已完成
+
+- 新增 `scripts/package_lite_release.ps1`。
+- 新增可选轻量包输出：
+  - `out/PasswordManager-lite-portable`
+  - `out/PasswordManager-0.1.0-win-x64-lite.zip`
+  - `out/PasswordManager-0.1.0-win-x64-lite.zip.sha256`
+- 默认完整包不变，轻量包从完整包复制后再移除可选文件。
+- 轻量包移除：
+  - `vc_redist.x64.exe`。
+  - 除 `qt_zh_CN.qm` 外的 Qt 翻译文件。
+  - 除 `qsqlite.dll` 外的 SQL 驱动。
+- 保留图形 fallback 文件，暂不移除 `opengl32sw.dll`、`dxcompiler.dll`、`d3dcompiler_47.dll`、`dxil.dll`。
+
+### 验证
+
+- 轻量包生成：通过。
+- 轻量包 smoke-test：退出码 0。
+- 轻量包 ZIP 完整性：通过。
+- 轻量包体积基线生成：通过。
+- QML/Quick 残留：0。
+
+### 体积对比
+
+- 完整包 zip：56.31 MiB。
+- 轻量包 zip：30.58 MiB。
+- zip 节省：约 25.73 MiB。
+- 完整便携目录：101.32 MiB。
+- 轻量便携目录：71.74 MiB。
+- 目录节省：约 29.58 MiB。
+- 完整包 SHA256：`3df40afd82f74b08d5586873e806172df9965e709da419881e48127443d33a24`。
+- 轻量包 SHA256：`ae347a97432aeb61202844a3e179075ab31086a5f7a969f6bbdd241b370b8816`。
+
+### 风险
+
+- 轻量包要求目标系统已安装 Microsoft Visual C++ Runtime。
+- 轻量包只保留 SQLite 驱动，不适合未来临时切换到其他 SQL 驱动。
+- 轻量包只保留简体中文 Qt 翻译。
+- 仍需在干净 Windows 机器或虚拟机做最终验收。
+
 ## 2026-08-04 Phase 56
 
 ### 已完成
@@ -16,8 +58,8 @@
 - zip：56.31 MiB。
 - `PasswordManager.exe`：532.00 KiB。
 - 文件数：111。
-- smoke-test：44 ms。
-- SHA256：`cd6036d706096b86c22d3aa9f6758c53d797aded023064f221bb0e917fee004e`。
+- smoke-test：35 ms。
+- SHA256：`3df40afd82f74b08d5586873e806172df9965e709da419881e48127443d33a24`。
 - QML/Quick 残留：0。
 
 ### 体积来源

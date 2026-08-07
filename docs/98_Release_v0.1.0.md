@@ -4,6 +4,8 @@
 
 - `PasswordManager-0.1.0-win-x64-portable.zip`
 - `PasswordManager-0.1.0-win-x64-portable.zip.sha256`
+- `PasswordManager-0.1.0-win-x64-lite.zip`
+- `PasswordManager-0.1.0-win-x64-lite.zip.sha256`
 
 ## 运行环境
 
@@ -24,6 +26,7 @@
 - 压缩包分类候选和分层日志。
 - Widgets 基础现代化样式。
 - 纯 Widgets 首页概览。
+- 可选轻量包。
 
 ## 注意事项
 
@@ -31,9 +34,11 @@
 - 密码、导出文件、诊断包和数据库备份可能包含明文密码。
 - 右键菜单需要在程序 `设置` 页安装或修复。
 - GPU / 多线程加速未包含在 v0.1.0。
+- 轻量包要求目标系统已安装 Microsoft Visual C++ Runtime；如果不确定，优先使用完整便携包。
 
 ## 校验
 
 ```text
-SHA256: cd6036d706096b86c22d3aa9f6758c53d797aded023064f221bb0e917fee004e
+SHA256: 3df40afd82f74b08d5586873e806172df9965e709da419881e48127443d33a24
+Lite SHA256: ae347a97432aeb61202844a3e179075ab31086a5f7a969f6bbdd241b370b8816
 ```

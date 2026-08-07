@@ -264,3 +264,9 @@ QML 试点已验证可行，但为降低发布包体积和运行时占用，当�
 ## Phase 56 补充：体积基线
 
 开发目录提供 `scripts/measure_release.ps1`，用于测量当前发布包体积结构并生成 `out/release-size-baseline.md`。该报告用于后续轻量优化参考，不代表其中某个 DLL 可以直接删除。
+
+## Phase 57 补充：可选轻量包
+
+开发目录提供 `scripts/package_lite_release.ps1`，可从完整发布包生成轻量包。轻量包保留应用功能，但移除 VC 运行库安装器、非简体中文 Qt 翻译和非 SQLite SQL 驱动。
+
+轻量包适合已安装 Microsoft Visual C++ Runtime 的机器；如果无法启动或缺少运行库，应使用完整便携包。

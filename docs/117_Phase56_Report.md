@@ -17,8 +17,8 @@
 | zip 包 | 56.31 MiB |
 | PasswordManager.exe | 532.00 KiB |
 | 文件数 | 111 |
-| smoke-test | 44 ms |
-| SHA256 | `cd6036d706096b86c22d3aa9f6758c53d797aded023064f221bb0e917fee004e` |
+| smoke-test | 35 ms |
+| SHA256 | `3df40afd82f74b08d5586873e806172df9965e709da419881e48127443d33a24` |
 
 ## 主要体积来源
 
