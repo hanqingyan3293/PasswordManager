@@ -11,7 +11,7 @@
 
 - Windows x64。
 - 便携版解压后运行 `PasswordManager.exe`。
-- 发布包已包含 Qt 运行库和项目内置 7-Zip。
+- 发布包已包含 Qt 运行库、应用本地 VC++ Runtime 和项目内置 7-Zip。
 
 ## 已实现
 
@@ -34,11 +34,12 @@
 - 密码、导出文件、诊断包和数据库备份可能包含明文密码。
 - 右键菜单需要在程序 `设置` 页安装或修复。
 - GPU / 多线程加速未包含在 v0.1.0。
-- 轻量包要求目标系统已安装 Microsoft Visual C++ Runtime；如果不确定，优先使用完整便携包。
+- 当前支持目标为 Windows 10/11 x64；轻量包不要求预先安装 Microsoft Visual C++ Runtime。
+- 正式 ZIP 不包含开发机的数据库、配置、日志或备份文件。
 
 ## 校验
 
 ```text
-SHA256: 3df40afd82f74b08d5586873e806172df9965e709da419881e48127443d33a24
-Lite SHA256: ae347a97432aeb61202844a3e179075ab31086a5f7a969f6bbdd241b370b8816
+SHA256: 73fc915225d3507a9023d9114482a31d25e9eb39fc9651bfbee8601acd7faa04
+Lite SHA256: 9e97a891b7c8c8e4f77f3699c58b68eca1f38b820e8ddb435a772e491e9205bd
 ```

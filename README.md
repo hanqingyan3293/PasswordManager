@@ -216,4 +216,8 @@ QML 混合架构试点已验证可行，但为降低发布包体积和运行时�
 
 ## Phase 57 可选轻量包补充
 
-新增 `scripts/package_lite_release.ps1`，从完整发布包生成可选轻量包。轻量包移除 VC 运行库安装器、非简体中文 Qt 翻译和非 SQLite SQL 驱动；zip 从约 56 MiB 降到约 31 MiB。轻量包要求目标系统已有 Microsoft Visual C++ Runtime，正式推荐前需要干净 Windows 机器验证。
+新增 `scripts/package_lite_release.ps1`，从完整发布包生成可选轻量包。轻量包移除 VC 运行库安装器、非简体中文 Qt 翻译和非 SQLite SQL 驱动；zip 从约 56 MiB 降到约 31 MiB。
+
+## Phase 58 轻量包发布可靠性补充
+
+轻量包现在默认先生成最新完整包，再从完整包的干净 ZIP 构建，不再复制正在使用的便携目录。完整包和轻量包压缩前都会拒绝任何数据库、配置、日志或备份文件。发布脚本扫描全部 EXE/DLL 的 VC++ Runtime 依赖，并在程序目录部署 5 个必需的 x64 运行库 DLL，因此轻量包不再要求用户预先安装 Microsoft Visual C++ Runtime。当前支持目标为 Windows 10/11 x64，正式推荐前仍需干净 Windows 环境验收。

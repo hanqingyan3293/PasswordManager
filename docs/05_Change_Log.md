@@ -1,5 +1,43 @@
 # Change Log
 
+## 2026-08-08 Phase 58
+
+### 已完成
+
+- 修复轻量包从正在使用的便携目录复制文件导致运行数据进入 ZIP 的问题。
+- 轻量包默认先生成最新完整包，再从完整包的干净 ZIP 构建。
+- 完整包和轻量包压缩前强制检查 `data`、`config`、`logs`、`backup`，存在任何文件时停止打包。
+- 新增 `scripts/verify_release_archive.ps1`，ZIP 生成后自动解包复验运行数据、发布清单和文件哈希。
+- 修复打包中途失败时本地运行数据暂存副本可能被删除的问题；恢复失败时保留暂存副本。
+- 校验 Release 构建产物、完整包和轻量包中的 `PasswordManager.exe` SHA256 一致。
+- 新增 `scripts/deploy_vc_runtime.ps1`，扫描发布目录内全部 EXE/DLL 的 MSVC Runtime 依赖。
+- 从 Visual Studio 官方 x64 Redistributable 目录部署 5 个应用本地运行库 DLL。
+- 完整包继续保留 `vc_redist.x64.exe`；轻量包只保留应用本地运行库 DLL。
+- 完整包和轻量包新增 `VC_RUNTIME_MANIFEST.txt`。
+
+### 安全修复
+
+- Phase57 本地轻量 ZIP 被发现包含本机数据库、配置和日志，旧 ZIP 已在本机重新生成并覆盖，不得继续使用旧副本。
+- 新正式 ZIP 中运行数据文件检查结果：完整包 0，轻量包 0。
+- 未读取或修改本机 SQLite 密码内容。
+
+### 验证
+
+- Debug 自动测试：14/14 通过。
+- Release 构建：通过。
+- 完整包与轻量包生成：通过。
+- 完整包与轻量包 ZIP 完整性：通过。
+- 完整包与轻量包 smoke-test：通过。
+- VC++ Runtime 依赖闭包：5 个 DLL，全部为 x64。
+- 三处 `PasswordManager.exe` SHA256：`921f8cb3385a05da918871e61fc7db7e5c7ab1e0d3ce455a585620e30b568546`。
+
+### 新基线
+
+- 完整包 ZIP：56.69 MiB，SHA256：`73fc915225d3507a9023d9114482a31d25e9eb39fc9651bfbee8601acd7faa04`。
+- 轻量包 ZIP：30.93 MiB，SHA256：`9e97a891b7c8c8e4f77f3699c58b68eca1f38b820e8ddb435a772e491e9205bd`。
+- 应用本地 VC++ Runtime 未压缩总大小约 1.00 MiB。
+- 图形 fallback 文件保持不变。
+
 ## 2026-08-08 Phase 57
 
 ### 已完成

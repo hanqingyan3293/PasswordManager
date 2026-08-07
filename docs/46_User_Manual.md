@@ -269,4 +269,10 @@ QML 试点已验证可行，但为降低发布包体积和运行时占用，当�
 
 开发目录提供 `scripts/package_lite_release.ps1`，可从完整发布包生成轻量包。轻量包保留应用功能，但移除 VC 运行库安装器、非简体中文 Qt 翻译和非 SQLite SQL 驱动。
 
-轻量包适合已安装 Microsoft Visual C++ Runtime 的机器；如果无法启动或缺少运行库，应使用完整便携包。
+## Phase 58 补充：轻量包运行库和数据隔离
+
+轻量包已包含程序和 Qt 实际需要的 5 个应用本地 Microsoft Visual C++ Runtime DLL，Windows 10/11 x64 用户不需要预先安装 VC++ Runtime。完整包仍保留运行库安装器作为兼容性保底。
+
+运行 `scripts/package_lite_release.ps1` 时，脚本默认重新构建 Release、生成完整包，再从完整包的干净 ZIP 生成轻量包。开发阶段确实不需要重编译时，可以显式使用 `-SkipBuild`，但仍会重新生成完整包并校验 EXE 哈希。
+
+正式 ZIP 不会包含 `data`、`config`、`logs`、`backup` 中的本机文件。本地 `out/PasswordManager-portable` 和 `out/PasswordManager-lite-portable` 目录中的测试记录会保留，不能把这些正在使用的目录手工压缩后发布。

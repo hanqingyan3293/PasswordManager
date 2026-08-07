@@ -52,6 +52,34 @@ function Assert-UnderDirectory {
     }
 }
 
+function Restore-RuntimeDirectories {
+    param(
+        [string]$BackupRoot,
+        [string]$TargetRoot
+    )
+
+    if (-not (Test-Path -LiteralPath $BackupRoot)) {
+        return
+    }
+    if (-not (Test-Path -LiteralPath $TargetRoot)) {
+        New-Item -ItemType Directory -Force -Path $TargetRoot | Out-Null
+    }
+
+    foreach ($dirName in $runtimeDirs) {
+        $runtimeBackup = Join-Path $BackupRoot $dirName
+        if (-not (Test-Path -LiteralPath $runtimeBackup)) {
+            continue
+        }
+
+        $runtimeTarget = Join-Path $TargetRoot $dirName
+        if (Test-Path -LiteralPath $runtimeTarget) {
+            Remove-Item -LiteralPath $runtimeTarget -Recurse -Force
+        }
+        Copy-Item -LiteralPath $runtimeBackup -Destination $runtimeTarget -Recurse -Force
+    }
+}
+
+$runtimeBackupReady = $false
 Push-Location $repoRoot
 try {
     if (-not (Test-Path $windeployqt)) {
@@ -76,6 +104,7 @@ try {
                 Copy-Item -LiteralPath $runtimeSource -Destination (Join-Path $preserveRuntimeDir $dirName) -Recurse -Force
             }
         }
+        $runtimeBackupReady = $true
     }
 
     if (Test-Path $outputPath) {
@@ -98,6 +127,9 @@ try {
     $deployedExe = Join-Path $outputPath "PasswordManager.exe"
     $deployCommand = "call `"$vcvars`" && `"$windeployqt`" --release --compiler-runtime `"$deployedExe`""
     cmd.exe /c $deployCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "windeployqt failed with exit code $LASTEXITCODE."
+    }
 
     $release7zDir = Join-Path $outputPath "tools\7zip"
     New-Item -ItemType Directory -Force -Path $release7zDir | Out-Null
@@ -117,6 +149,16 @@ try {
     foreach ($dirName in $runtimeDirs) {
         New-Item -ItemType Directory -Force -Path (Join-Path $outputPath $dirName) | Out-Null
     }
+
+    $runtimeFiles = foreach ($dirName in $runtimeDirs) {
+        $runtimeDir = Join-Path $outputPath $dirName
+        Get-ChildItem -LiteralPath $runtimeDir -Recurse -File -ErrorAction SilentlyContinue
+    }
+    if (@($runtimeFiles).Count -ne 0) {
+        throw "Release staging contains runtime data files. Packaging was stopped."
+    }
+
+    & (Join-Path $PSScriptRoot "deploy_vc_runtime.ps1") -PackageDir $outputPath
 
     $readmePath = Join-Path $outputPath "README_RELEASE.txt"
     @"
@@ -205,26 +247,28 @@ Command checks:
     $zipHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath).Hash.ToLowerInvariant()
     "$zipHash  $zipFileName" | Set-Content -Path $zipHashPath -Encoding ASCII
 
-    if (Test-Path $preserveRuntimeDir) {
-        foreach ($dirName in $runtimeDirs) {
-            $runtimeBackup = Join-Path $preserveRuntimeDir $dirName
-            if (Test-Path $runtimeBackup) {
-                $runtimeTarget = Join-Path $outputPath $dirName
-                if (Test-Path $runtimeTarget) {
-                    Remove-Item -LiteralPath $runtimeTarget -Recurse -Force
-                }
-                Copy-Item -LiteralPath $runtimeBackup -Destination $runtimeTarget -Recurse -Force
-            }
-        }
-    }
+    & (Join-Path $PSScriptRoot "verify_release_archive.ps1") `
+        -ArchivePath $zipPath `
+        -ExpectedRootName (Split-Path -Leaf $outputPath) `
+        -ExpectedExePath $exePath `
+        -RequireVcRedist
 
     Write-Host "Release directory created: $outputPath"
     Write-Host "Release archive created: $zipPath"
     Write-Host "Release archive SHA256: $zipHashPath"
 }
 finally {
-    if (Test-Path $preserveRuntimeDir) {
-        Remove-Item -LiteralPath $preserveRuntimeDir -Recurse -Force -ErrorAction SilentlyContinue
+    $runtimeRestored = $false
+    try {
+        if ($runtimeBackupReady) {
+            Restore-RuntimeDirectories -BackupRoot $preserveRuntimeDir -TargetRoot $outputPath
+        }
+        $runtimeRestored = $true
     }
-    Pop-Location
+    finally {
+        if ($runtimeRestored -and (Test-Path -LiteralPath $preserveRuntimeDir)) {
+            Remove-Item -LiteralPath $preserveRuntimeDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Pop-Location
+    }
 }
