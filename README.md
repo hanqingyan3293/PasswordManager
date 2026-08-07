@@ -221,3 +221,7 @@ QML 混合架构试点已验证可行，但为降低发布包体积和运行时�
 ## Phase 58 轻量包发布可靠性补充
 
 轻量包现在默认先生成最新完整包，再从完整包的干净 ZIP 构建，不再复制正在使用的便携目录。完整包和轻量包压缩前都会拒绝任何数据库、配置、日志或备份文件。发布脚本扫描全部 EXE/DLL 的 VC++ Runtime 依赖，并在程序目录部署 5 个必需的 x64 运行库 DLL，因此轻量包不再要求用户预先安装 Microsoft Visual C++ Runtime。当前支持目标为 Windows 10/11 x64，正式推荐前仍需干净 Windows 环境验收。
+
+## Phase 59 干净环境验收补充
+
+新增 `scripts/prepare_clean_environment_test.ps1` 和 `scripts/run_clean_environment_acceptance.ps1`，可生成 Windows Sandbox 或普通干净 Windows 机器使用的独立验收套件。自动检查覆盖 ZIP 哈希、运行数据隔离、发布清单、5 个应用本地 VC++ DLL、Unicode 路径、内置 7-Zip、三种密码场景、smoke-test、GUI 启动和运行库实际加载路径。当前开发机工具自测 14/14 通过；Windows Sandbox 功能尚未启用，干净环境人工验收待执行。

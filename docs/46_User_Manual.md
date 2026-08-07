@@ -276,3 +276,25 @@ QML 试点已验证可行，但为降低发布包体积和运行时占用，当�
 运行 `scripts/package_lite_release.ps1` 时，脚本默认重新构建 Release、生成完整包，再从完整包的干净 ZIP 生成轻量包。开发阶段确实不需要重编译时，可以显式使用 `-SkipBuild`，但仍会重新生成完整包并校验 EXE 哈希。
 
 正式 ZIP 不会包含 `data`、`config`、`logs`、`backup` 中的本机文件。本地 `out/PasswordManager-portable` 和 `out/PasswordManager-lite-portable` 目录中的测试记录会保留，不能把这些正在使用的目录手工压缩后发布。
+
+## Phase 59 补充：干净 Windows 验收
+
+在开发目录运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\prepare_clean_environment_test.ps1
+```
+
+脚本会生成 `out/clean-environment-test`，其中包括：
+
+- `PasswordManager-Clean-Test.wsb`：Windows Sandbox 配置。
+- `input`：可复制到另一台干净 Windows 10/11 x64 机器的完整测试输入。
+- `results`：Sandbox 自动结果和人工清单输出目录。
+
+每次运行都会在 `results` 下建立独立的 `Session-日期-时间` 目录。重新生成测试套件只更新 `input`，不会删除历史验收结果或覆盖已经填写的人工清单。
+
+如果 Windows Sandbox 已启用，双击 `.wsb` 文件即可开始。脚本不会自动启用 Windows 可选功能，也不会触发重启。微软官方安装说明：[Install Windows Sandbox](https://learn.microsoft.com/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-install)。
+
+不使用 Sandbox 时，把整个 `input` 目录复制到干净机器，双击 `RUN_ON_CLEAN_MACHINE.cmd`。自动检查结束后，程序和测试压缩包目录会打开；按照 `MANUAL_CHECKLIST.md` 完成人工验收。
+
+Sandbox 配置将输入目录映射为只读、结果目录映射为可写，并关闭网络、虚拟 GPU 和剪贴板重定向。配置格式参考微软官方说明：[Use and configure Windows Sandbox](https://learn.microsoft.com/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-configure-using-wsb-file)。

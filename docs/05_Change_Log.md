@@ -1,5 +1,33 @@
 # Change Log
 
+## 2026-08-08 Phase 59
+
+### 已完成
+
+- 新增 `scripts/prepare_clean_environment_test.ps1`，生成独立干净环境验收套件。
+- 新增 `scripts/run_clean_environment_acceptance.ps1`，在 Sandbox 或普通干净机器中执行自动检查。
+- 新增 Windows Sandbox `.wsb` 配置：输入只读、结果单独可写、网络关闭、虚拟 GPU 关闭、剪贴板重定向关闭。
+- 自动生成无密码 7z、密码 7z 和密码 zip 测试文件。
+- 自动检查中文 Unicode 路径、错误密码退出码和主程序 smoke-test。
+- 启动 GUI 后检查 5 个 VC++ Runtime DLL 的实际加载路径均位于程序目录。
+- 新增 Phase59 人工验收清单，覆盖界面、表格、密码工作流、7-Zip 中文界面和右键菜单安装/卸载。
+- 每次验收写入独立的时间戳会话目录，重新生成套件不会删除历史结果。
+
+### 当前验证
+
+- PowerShell 5.1 兼容语法：通过。
+- 验收脚本保持纯 ASCII，避免干净系统代码页导致脚本解析失败。
+- `.wsb` XML：通过。
+- 验收套件生成：通过。
+- 当前开发机模拟运行：14/14 通过。
+- GUI 加载运行库：5/5 均来自应用目录。
+- 当前机器 Windows Sandbox 状态：Disabled，未自动修改。
+
+### 待完成
+
+- 在 Windows Sandbox 或另一台干净 Windows 10/11 x64 机器执行人工验收。
+- 当前开发机已有 VC++ Runtime 和开发工具，因此本机 14/14 结果只证明验收工具有效，不替代干净环境结论。
+
 ## 2026-08-08 Phase 58
 
 ### 已完成
